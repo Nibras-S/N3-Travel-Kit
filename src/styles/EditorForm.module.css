@@ -1,0 +1,84 @@
+.editor {
+  background: #f8fafc;
+  color: #0f172a;
+  font-family: 'Geist', sans-serif;
+}
+
+.editor :global(.mantine-InputWrapper-label) {
+  margin-bottom: 6px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.editor :global(.mantine-InputWrapper-description) {
+  margin-top: 4px;
+  color: #64748b;
+  font-size: 11px;
+}
+
+.editor :global(.mantine-Input-input:not([data-variant='unstyled'])) {
+  min-height: 42px;
+  height: 42px;
+  border-color: #dbe2ea;
+  border-radius: 10px;
+  background: #fff;
+  color: #0f172a;
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+.editor :global(.mantine-Input-input:not([data-variant='unstyled']):focus),
+.editor :global(.mantine-Input-input:not([data-variant='unstyled']):focus-within) {
+  border-color: #017746;
+  box-shadow: 0 0 0 2px rgb(1 119 70 / 10%);
+}
+
+.editor :global(.mantine-Textarea-input:not([data-variant='unstyled'])) {
+  height: auto;
+  min-height: 120px;
+  padding-top: 10px;
+}
+
+.editor :global(.mantine-Button-root) {
+  border-radius: 10px;
+  font-family: inherit;
+  font-weight: 500;
+}
+
+.editor :global(.mantine-Button-root[data-variant='light'][data-color='green']) {
+  background: #ecfdf5;
+  color: #017746;
+}
+
+.editor :global(.mantine-Accordion-item) {
+  border-color: #e2e8f0;
+}
+
+.editor :global(.mantine-Accordion-control) {
+  border-radius: 10px;
+}
+
+.editor :global(.mantine-Accordion-control:hover) {
+  background: #f8fafc;
+}
+
+.editor :global(.mantine-Accordion-label) {
+  font-family: inherit;
+}
+
+.editor :global(.mantine-Switch-label) {
+  color: #334155;
+  font-size: 13px;
+}
+
+.section {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+}
+
+.priceCard {
+  border-color: #e2e8f0;
+  background: #fff;
+}

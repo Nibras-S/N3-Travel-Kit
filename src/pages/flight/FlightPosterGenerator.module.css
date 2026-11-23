@@ -1,0 +1,390 @@
+.workspaceWrapper {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.mobileViewTabs {
+  display: none;
+}
+
+.editor,
+.preview {
+  display: flex;
+}
+
+.previewScroll :global([data-radix-scroll-area-viewport]) > div {
+  display: flex !important;
+  min-height: 100%;
+  flex-direction: column;
+}
+
+.previewContent {
+  box-sizing: border-box;
+  display: flex;
+  min-height: 100%;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.editor {
+  background: #f8fafc;
+}
+
+.form {
+  padding: 24px;
+  font-family: 'Geist', sans-serif;
+}
+
+.section {
+  padding: 20px;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  background: #fff;
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.format {
+  font-size: 11px;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.flightIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: #ecfdf5;
+  color: #017746;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.flightAccordion {
+  display: grid;
+  gap: 12px;
+}
+
+.flightItem {
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.flightHeader {
+  padding: 4px 12px 4px 14px;
+}
+
+.flightControl {
+  padding: 10px 4px;
+}
+
+.routeSummary {
+  margin-left: auto;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 400;
+}
+
+.flightPanel {
+  padding: 8px 18px 20px;
+}
+
+.addFlightBar {
+  z-index: 2;
+  flex-shrink: 0;
+  padding: 12px 24px max(12px, env(safe-area-inset-bottom));
+  border-top: 1px solid #e2e8f0;
+  background: rgba(255, 255, 255, 0.97);
+}
+
+.fieldHeading {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: #334155;
+}
+
+.optional {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 400;
+  color: #64748b;
+}
+
+.imageChoice {
+  position: relative;
+  display: block;
+  width: 112px;
+  height: 112px;
+  padding: 3px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: #f1f5f9;
+  transition: border-color 150ms ease;
+}
+
+.imageChoice:hover {
+  border-color: #94a3b8;
+}
+
+.imageChoice[data-selected] {
+  border-color: #017746;
+  background: #ecfdf5;
+}
+
+.imageChoice:focus-visible {
+  outline: 3px solid #6ee7b7;
+  outline-offset: 3px;
+}
+
+.backgroundImage,
+.bannerImage {
+  display: block;
+  width: 100%;
+  border-radius: 7px;
+  object-fit: cover;
+}
+
+.backgroundImage {
+  height: 100%;
+}
+
+.bannerImage {
+  position: absolute;
+  inset: 3px;
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+  border-radius: 7px;
+  object-fit: cover;
+}
+
+.bannerGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.bannerChoice {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 1080 / 426;
+  padding: 3px;
+  border: 2px solid transparent;
+  border-radius: 12px;
+  background: #f1f5f9;
+  transition: border-color 150ms ease;
+}
+
+.bannerChoice:hover {
+  border-color: #94a3b8;
+}
+
+.bannerChoice[data-selected] {
+  border-color: #017746;
+  background: #ecfdf5;
+}
+
+.bannerChoice:focus-visible {
+  outline: 3px solid #6ee7b7;
+  outline-offset: 3px;
+}
+
+.bannerChoice .selectionMark {
+  top: 5px;
+  right: 5px;
+  width: 20px;
+  height: 20px;
+}
+
+.selectionMark {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #fff;
+  border-radius: 50%;
+  background: #017746;
+  color: #fff;
+}
+
+.imageGrid {
+  position: relative;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, 112px);
+  gap: 10px;
+}
+
+.hiddenFileInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  clip-path: inset(50%);
+  border: 0;
+}
+
+.uploadChoice {
+  position: relative;
+  display: flex;
+  width: 112px;
+  height: 112px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  overflow: hidden;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #f1f5f9;
+  color: #64748b;
+  cursor: pointer;
+  transition: border-color 150ms ease, background 150ms ease;
+}
+
+.uploadPreview {
+  position: absolute;
+  inset: 3px;
+  width: calc(100% - 6px);
+  height: calc(100% - 6px);
+}
+
+.uploadChoice:hover {
+  border-color: #94a3b8;
+  background: #e9eff5;
+}
+
+.uploadChoice[data-selected] {
+  border-style: solid;
+  border-color: #017746;
+  background: #ecfdf5;
+}
+
+.hiddenFileInput:focus-visible + .uploadChoice {
+  outline: 3px solid #6ee7b7;
+  outline-offset: 3px;
+}
+
+.uploadIcon {
+  display: grid;
+  width: 34px;
+  height: 34px;
+  place-items: center;
+  border-radius: 10px;
+  background: #fff;
+  color: #475569;
+}
+
+.uploadLabel {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  left: 3px;
+  padding: 4px 2px;
+  border-radius: 0 0 7px 7px;
+  background: rgba(255, 255, 255, 0.92);
+  text-align: center;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.form :global(.mantine-InputWrapper-label) {
+  margin-bottom: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: #334155;
+}
+
+.form :global(.mantine-Input-input) {
+  min-height: 42px;
+  height: 42px;
+  border-color: #dbe2ea;
+  border-radius: 10px;
+  background: #fff;
+  font-size: 14px;
+}
+
+.form :global(.mantine-Input-input):focus-within {
+  border-color: #017746;
+}
+
+@media (max-width: 74.99em) {
+  .mobileViewTabs {
+    display: block;
+    padding: 10px 16px;
+    border-top: 1px solid #e2e8f0;
+    background: #fff;
+  }
+
+  .imageGrid {
+    grid-template-columns: repeat(auto-fill, 88px);
+    gap: 8px;
+  }
+
+  .imageChoice,
+  .uploadChoice {
+    width: 88px;
+    height: 88px;
+  }
+
+  .workspace[data-mobile-view='edit'] .preview,
+  .workspace[data-mobile-view='preview'] .editor {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .form {
+    padding: 12px;
+  }
+
+  .section {
+    padding: 16px;
+  }
+
+  .flightPanel {
+    padding: 8px 12px 16px;
+  }
+
+  .addFlightBar {
+    padding: 10px 12px max(10px, env(safe-area-inset-bottom));
+  }
+
+  .imageGrid {
+    grid-template-columns: repeat(auto-fill, 76px);
+    gap: 6px;
+    justify-content: start;
+  }
+
+  .imageChoice,
+  .uploadChoice {
+    width: 76px;
+    height: 76px;
+  }
+
+  .uploadChoice {
+    gap: 4px;
+  }
+}

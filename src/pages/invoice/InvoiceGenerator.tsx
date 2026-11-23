@@ -1,0 +1,755 @@
+import { useRef, useState } from "react";
+import {
+  Button,
+  TextInput,
+  Textarea,
+  NumberInput,
+  Table,
+  Paper,
+  Title,
+  Text,
+  Group,
+  Stack,
+  ActionIcon,
+  Box,
+  Flex,
+  SimpleGrid,
+  Image,
+  Accordion,
+  ThemeIcon,
+  ScrollArea,
+  Select,
+  Switch,
+} from "@mantine/core";
+import { Plus, Trash2, Download } from "lucide-react";
+import { useReactToPrint } from "react-to-print";
+import Layout from "../../components/Layout";
+import { useNavigation } from "../../NavigationContext";
+import formClasses from "../../styles/EditorForm.module.css";
+
+const generateRandomInvoiceNumber = () =>
+  String(Math.floor(1000000000 + Math.random() * 9000000000));
+
+const InvoiceGenerator = () => {
+  const contentRef = useRef<HTMLDivElement>(null);
+  const reactToPrintFn = useReactToPrint({ contentRef });
+  const [currency, setCurrency] = useState("₹");
+  const [selectedLogo, setSelectedLogo] = useState("n3travelkit");
+
+  const [invoiceData, setInvoiceData] = useState({
+    addressLine1: "Ground Floor, Royal Oak Mall,",
+    addressLine2: "Thana, Kannur",
+    email: "n3globaltech@gmail.com",
+    phone: "860 655 0235 | 871 420 0235",
+    invoiceTo: "",
+    invoiceDate: new Date().toISOString().split("T")[0],
+    invoiceNumber: generateRandomInvoiceNumber(),
+    items: [{ id: 1, description: "", qty: 1, rate: 0 }],
+    discount: 0,
+    showAccountDetails: false,
+    accountHolderKey: "Holder Name",
+    accountHolderValue: "",
+    accountNumberKey: "Account Number",
+    accountNumberValue: "",
+    accountIdKey: "IBAN",
+    accountIdValue: "",
+    accountTypeKey: "Account Type",
+    accountTypeValue: "",
+    footer: `Thank you for choosing us for your travel needs!
+We truly appreciate your business and look forward to helping you explore more destinations in the future.
+Wishing you safe travels and unforgettable experiences!
+#turning miles into memories`,
+  });
+
+  const addItem = () => {
+    const newId = Math.max(...invoiceData.items.map((item) => item.id)) + 1;
+    setInvoiceData((prev) => ({
+      ...prev,
+      items: [...prev.items, { id: newId, description: "", qty: 1, rate: 0 }],
+    }));
+  };
+
+  const removeItem = (id: any) => {
+    if (invoiceData.items.length > 1) {
+      setInvoiceData((prev) => ({
+        ...prev,
+        items: prev.items.filter((item) => item.id !== id),
+      }));
+    }
+  };
+
+  const updateItem = (id: any, field: any, value: any) => {
+    setInvoiceData((prev) => ({
+      ...prev,
+      items: prev.items.map((item) =>
+        item.id === id ? { ...item, [field]: value } : item
+      ),
+    }));
+  };
+
+  const handleItemNumberChange = (
+    id: any,
+    field: any,
+    value: string | number
+  ) => {
+    // Handle empty string or null/undefined values
+    if (value === "" || value === null || value === undefined) {
+      updateItem(id, field, field === "qty" ? 1 : 0);
+      return;
+    }
+
+    // Convert to number and validate
+    const numValue = typeof value === "string" ? parseFloat(value) : value;
+
+    // Only update if it's a valid number
+    if (!isNaN(numValue) && numValue >= 0) {
+      updateItem(id, field, numValue);
+    }
+  };
+
+  const updateField = (field: any, value: any) => {
+    setInvoiceData((prev) => ({ ...prev, [field]: value }));
+  };
+
+  const calculateSubtotal = () => {
+    return invoiceData.items.reduce((total, item) => {
+      const qty =
+        typeof item.qty === "number" && !isNaN(item.qty) ? item.qty : 0;
+      const rate =
+        typeof item.rate === "number" && !isNaN(item.rate) ? item.rate : 0;
+      return total + qty * rate;
+    }, 0);
+  };
+
+  const calculateTotal = () => {
+    const subtotal = calculateSubtotal();
+    const discountValue =
+      typeof invoiceData.discount === "number" && !isNaN(invoiceData.discount)
+        ? invoiceData.discount
+        : 0;
+    return Math.max(0, subtotal - discountValue);
+  };
+
+  const handleDiscountChange = (value: string | number) => {
+    // Handle empty string or null/undefined values
+    if (value === "" || value === null || value === undefined) {
+      updateField("discount", 0);
+      return;
+    }
+
+    // Convert to number and validate
+    const numValue = typeof value === "string" ? parseFloat(value) : value;
+
+    // Only update if it's a valid number
+    if (!isNaN(numValue) && numValue >= 0) {
+      updateField("discount", numValue);
+    }
+  };
+
+  const handleGenerateInvoiceNumber = () => {
+    updateField("invoiceNumber", generateRandomInvoiceNumber());
+  };
+
+  const rows = invoiceData.items.map((item, index) => (
+    <Table.Tr key={item.id}>
+      <Table.Td>{index + 1}</Table.Td>
+      <Table.Td>
+        <TextInput
+          value={item.description}
+          onChange={(e) => updateItem(item.id, "description", e.target.value)}
+          placeholder="Item description"
+          variant="unstyled"
+          size="sm"
+        />
+      </Table.Td>
+      <Table.Td align="right">
+        <NumberInput
+          value={item.qty}
+          onChange={(value) => handleItemNumberChange(item.id, "qty", value)}
+          min={1}
+          variant="unstyled"
+          size="sm"
+          allowNegative={false}
+          clampBehavior="strict"
+          allowLeadingZeros={false}
+          maw={50}
+        />
+      </Table.Td>
+      <Table.Td align="right">
+        <NumberInput
+          styles={{
+            input: {
+              textAlign: "right",
+            },
+          }}
+          w={60}
+          inputWrapperOrder={["input", "label", "description", "error"]}
+          hideControls
+          value={item.rate}
+          onChange={(value) => handleItemNumberChange(item.id, "rate", value)}
+          min={0}
+          step={0.01}
+          decimalScale={2}
+          variant="unstyled"
+          size="sm"
+          allowNegative={false}
+          clampBehavior="strict"
+          allowLeadingZeros={false}
+        />
+      </Table.Td>
+      <Table.Td align="right">
+        <Text ta={"right"} size="sm" fw={"700"}>
+          {(
+            (typeof item.qty === "number" ? item.qty : 0) *
+            (typeof item.rate === "number" ? item.rate : 0)
+          ).toFixed(2)}
+        </Text>
+      </Table.Td>
+      <Table.Td align="center">
+        {invoiceData.items.length > 1 && (
+          <ActionIcon
+            color="red"
+            variant="light"
+            size="sm"
+            onClick={() => removeItem(item.id)}
+          >
+            <Trash2 size={14} />
+          </ActionIcon>
+        )}
+      </Table.Td>
+    </Table.Tr>
+  ));
+
+  const previewRows = invoiceData.items.map((item, index) => (
+    <Table.Tr key={item.id}>
+      <Table.Td>{index + 1}</Table.Td>
+      <Table.Td style={{ fontWeight: 500 }}>{item.description}</Table.Td>
+      <Table.Td style={{ textAlign: "center" }}>
+        {(typeof item.qty === "number" ? item.qty : 0).toFixed(2)}
+      </Table.Td>
+      <Table.Td style={{ textAlign: "right" }}>
+        {(typeof item.rate === "number" ? item.rate : 0).toFixed(2)}
+      </Table.Td>
+      <Table.Td style={{ textAlign: "right", fontWeight: 500 }}>
+        {currency}{" "}
+        {(
+          (typeof item.qty === "number" ? item.qty : 0) *
+          (typeof item.rate === "number" ? item.rate : 0)
+        ).toFixed(2)}
+      </Table.Td>
+    </Table.Tr>
+  ));
+
+  const discountValue =
+    typeof invoiceData.discount === "number" && !isNaN(invoiceData.discount)
+      ? invoiceData.discount
+      : 0;
+
+  const { navigateHome } = useNavigation();
+
+  return (
+    <Layout
+      title="Invoice Generator"
+      onNavigateHome={navigateHome}
+      actions={
+        <Button
+          radius={"md"}
+          leftSection={<Download size={16} />}
+          onClick={reactToPrintFn}
+          color="green"
+          size="sm"
+        >
+          Download PDF
+        </Button>
+      }
+    >
+
+      <SimpleGrid
+        cols={{ base: 1, sm: 1, lg: 2 }}
+        spacing={{ base: 0, sm: 0 }}
+        verticalSpacing={{ base: 0, sm: 0 }}
+        style={{ flex: 1, minHeight: 0, height: "100%" }}
+      >
+        {/* Input Form - Left Section */}
+
+        <Paper
+          className={formClasses.editor}
+          withBorder
+          radius={0}
+          style={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}
+        >
+          <ScrollArea style={{ flex: 1, height: "100%" }}>
+            <Accordion defaultValue={"inv"} radius="md">
+            <Accordion.Item value={"cmny"}>
+              <Accordion.Control>
+                <Text size="sm" fw={700} c="gray.9">
+                  Company Information
+                </Text>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <SimpleGrid
+                  cols={{ base: 1, sm: 2, lg: 2 }}
+                  spacing={{ base: 10, sm: "md" }}
+                  verticalSpacing={{ base: "md", sm: "md" }}
+                >
+                  <Select
+                    label="Logo Selection"
+                    value={selectedLogo}
+                    data={[
+                      { value: "n3travelkit", label: "N3 TravelKit" },
+                      { value: "ahma", label: "Ahma" },
+                    ]}
+                    onChange={(value) => setSelectedLogo(value || "n3travelkit")}
+                  />
+                  <TextInput
+                    label="Address Line 1"
+                    value={invoiceData.addressLine1}
+                    onChange={(e) =>
+                      updateField("addressLine1", e.target.value)
+                    }
+                  />
+                  <TextInput
+                    label="Address Line 2"
+                    value={invoiceData.addressLine2}
+                    onChange={(e) =>
+                      updateField("addressLine2", e.target.value)
+                    }
+                  />
+                  <TextInput
+                    label="Email Id"
+                    value={invoiceData.email}
+                    onChange={(e) => updateField("email", e.target.value)}
+                  />
+                  <TextInput
+                    label="Phone Numbers"
+                    value={invoiceData.phone}
+                    onChange={(e) => updateField("phone", e.target.value)}
+                  />
+                </SimpleGrid>
+              </Accordion.Panel>
+            </Accordion.Item>
+
+            <Accordion.Item value={"inv"}>
+              <Accordion.Control>
+                <Text size="sm" fw={700} c="gray.9">
+                  Invoice Information
+                </Text>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <Box>
+                  <SimpleGrid
+                    cols={{ base: 1, sm: 2, lg: 2 }}
+                    spacing={{ base: 10, sm: "md" }}
+                    verticalSpacing={{ base: "md", sm: "md" }}
+                  >
+                    <TextInput
+                      label="Invoice To"
+                      placeholder="Customer name"
+                      value={invoiceData.invoiceTo}
+                      onChange={(e) => updateField("invoiceTo", e.target.value)}
+                    />
+                    <TextInput
+                      label="Invoice Date"
+                      type="date"
+                      value={invoiceData.invoiceDate}
+                      onChange={(e) =>
+                        updateField("invoiceDate", e.target.value)
+                      }
+                    />
+                  </SimpleGrid>
+                  <Group mt="md" align="end" wrap="nowrap">
+                    <TextInput
+                      style={{ flex: 1 }}
+                      label="Invoice Number"
+                      placeholder="Enter invoice number"
+                      value={invoiceData.invoiceNumber}
+                      onChange={(e) =>
+                        updateField("invoiceNumber", e.target.value)
+                      }
+                    />
+                    <Button
+                      mt={24}
+                      variant="light"
+                      onClick={handleGenerateInvoiceNumber}
+                    >
+                      Generate Random
+                    </Button>
+                  </Group>
+                </Box>
+              </Accordion.Panel>
+            </Accordion.Item>
+
+            <Accordion.Item value={"itm"}>
+              <Accordion.Control>
+                <Text size="sm" fw={700} c="gray.9">
+                  Invoice Items
+                </Text>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <Box>
+                  <Table
+                    striped
+                    highlightOnHover
+                    withTableBorder
+                    withColumnBorders
+                  >
+                    <Table.Thead>
+                      <Table.Tr>
+                        <Table.Th>#</Table.Th>
+                        <Table.Th>Description</Table.Th>
+                        <Table.Th ta={"center"}>Qty</Table.Th>
+                        <Table.Th ta={"right"}>Rate</Table.Th>
+                        <Table.Th ta={"right"}>Amount</Table.Th>
+                        <Table.Th ta={"center"}>
+                          <ThemeIcon color="red" variant="default" size="sm">
+                            <Trash2 size={14} />
+                          </ThemeIcon>
+                        </Table.Th>
+                      </Table.Tr>
+                    </Table.Thead>
+                    <Table.Tbody>{rows}</Table.Tbody>
+                  </Table>
+
+                  <Group my={"lg"} justify="end">
+                    <Button
+                      radius={"md"}
+                      variant="light"
+                      leftSection={<Plus size={16} />}
+                      onClick={addItem}
+                      size="sm"
+                    >
+                      Add Item
+                    </Button>
+                  </Group>
+                </Box>
+
+                {/* Discount Section */}
+                <Flex gap={"md"} align={"center"} justify={"end"}>
+                  <Select
+                    label={"Choose Currency"}
+                    value={currency}
+                    data={["₹", "AED", "QAR", "$"]}
+                    onChange={(d: any) => setCurrency(d)}
+                  />
+
+                  <NumberInput
+                    styles={{
+                      input: {
+                        textAlign: "right",
+                      },
+                    }}
+                    hideControls
+                    label="Total Discount"
+                    value={discountValue}
+                    onChange={handleDiscountChange}
+                    min={0}
+                    step={0.01}
+                    decimalScale={2}
+                    allowNegative={false}
+                    clampBehavior="strict"
+                    allowLeadingZeros={false}
+                  />
+                </Flex>
+              </Accordion.Panel>
+            </Accordion.Item>
+
+            <Accordion.Item value={"acc"}>
+              <Accordion.Control>
+                <Text size="sm" fw={700} c="gray.9">
+                  Account Details
+                </Text>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <Stack>
+                  <Switch
+                    label="Include account details in invoice"
+                    checked={invoiceData.showAccountDetails}
+                    onChange={(event) =>
+                      updateField("showAccountDetails", event.currentTarget.checked)
+                    }
+                  />
+
+                  {invoiceData.showAccountDetails && (
+                    <SimpleGrid
+                      cols={{ base: 1, sm: 2, lg: 2 }}
+                      spacing={{ base: 10, sm: "md" }}
+                      verticalSpacing={{ base: "md", sm: "md" }}
+                    >
+                      <TextInput
+                        label="Field 1 Key"
+                        value={invoiceData.accountHolderKey}
+                        onChange={(e) =>
+                          updateField("accountHolderKey", e.target.value)
+                        }
+                      />
+                      <TextInput
+                        label="Field 1 Value"
+                        value={invoiceData.accountHolderValue}
+                        onChange={(e) =>
+                          updateField("accountHolderValue", e.target.value)
+                        }
+                      />
+                      <TextInput
+                        label="Field 2 Key"
+                        value={invoiceData.accountNumberKey}
+                        onChange={(e) =>
+                          updateField("accountNumberKey", e.target.value)
+                        }
+                      />
+                      <TextInput
+                        label="Field 2 Value"
+                        value={invoiceData.accountNumberValue}
+                        onChange={(e) =>
+                          updateField("accountNumberValue", e.target.value)
+                        }
+                      />
+                      <TextInput
+                        label="Field 3 Key (IBAN / IFSC)"
+                        value={invoiceData.accountIdKey}
+                        onChange={(e) =>
+                          updateField("accountIdKey", e.target.value)
+                        }
+                      />
+                      <TextInput
+                        label="Field 3 Value"
+                        value={invoiceData.accountIdValue}
+                        onChange={(e) =>
+                          updateField("accountIdValue", e.target.value)
+                        }
+                      />
+                      <TextInput
+                        label="Field 4 Key"
+                        value={invoiceData.accountTypeKey}
+                        onChange={(e) => updateField("accountTypeKey", e.target.value)}
+                      />
+                      <TextInput
+                        label="Field 4 Value"
+                        value={invoiceData.accountTypeValue}
+                        onChange={(e) =>
+                          updateField("accountTypeValue", e.target.value)
+                        }
+                      />
+                    </SimpleGrid>
+                  )}
+                </Stack>
+              </Accordion.Panel>
+            </Accordion.Item>
+
+            <Accordion.Item value={"ftr"}>
+              <Accordion.Control>
+                <Text size="sm" fw={700} c="gray.9">
+                  Invoice Footer
+                </Text>
+              </Accordion.Control>
+              <Accordion.Panel>
+                <Textarea
+                  value={invoiceData.footer}
+                  onChange={(e) => updateField("footer", e.target.value)}
+                  rows={8}
+                  resize="vertical"
+                />
+              </Accordion.Panel>
+            </Accordion.Item>
+          </Accordion>
+          </ScrollArea>
+        </Paper>
+
+        {/* Preview - Right Section */}
+
+        <Paper
+          withBorder
+          radius={0}
+          style={{ height: "100%", display: "flex", flexDirection: "column", minHeight: 0 }}
+        >
+          <ScrollArea style={{ flex: 1, height: "100%" }}>
+            <Paper ref={contentRef} p="xl" maw="800px" mx="auto">
+              {/* Header */}
+              <Group justify="space-between" mb="xl">
+                <Group gap="md">
+                  <Image src={`/${selectedLogo === "n3travelkit" ? "N3TravelKit.png" : "ahma.svg"}`} alt="Logo" w={200} />
+                </Group>
+                <Box>
+                  <Title order={2} c="gray.9">
+                    INVOICE
+                  </Title>
+                  <Title order={6} c="gray.9">
+                    #{invoiceData.invoiceNumber}
+                  </Title>
+                </Box>
+              </Group>
+
+              {/* Company Address */}
+              <Box mb="xl">
+                <Text size="sm" c="gray.7">
+                  {invoiceData.addressLine1}
+                </Text>
+                <Text size="sm" c="gray.7">
+                  {invoiceData.addressLine2}
+                </Text>
+                <Text mt={10} size="sm" c="gray.7">
+                  {invoiceData.email}
+                </Text>
+                <Text size="sm" c="gray.9" fw={700}>
+                  {invoiceData.phone}
+                </Text>
+              </Box>
+
+              {/* Customer and Invoice Details */}
+              <Group justify="space-between" mb="xl">
+                <Box>
+                  <Text size="lg" fw={700} c="gray.9">
+                    {invoiceData.invoiceTo}
+                  </Text>
+                </Box>
+                <Box style={{ textAlign: "right" }}>
+                  <Text size="sm" c="gray.9">
+                    Invoice Date :{" "}
+                    <Text component="span" ml="sm">
+                      {invoiceData.invoiceDate}
+                    </Text>
+                  </Text>
+                </Box>
+              </Group>
+
+              {/* Items Table */}
+              <Table mb="xl">
+                <Table.Thead bg="gray.9">
+                  <Table.Tr>
+                    <Table.Th style={{ color: "white", padding: "12px" }}>
+                      #
+                    </Table.Th>
+                    <Table.Th style={{ color: "white", padding: "12px" }}>
+                      Description
+                    </Table.Th>
+                    <Table.Th
+                      style={{
+                        color: "white",
+                        padding: "12px",
+                        textAlign: "center",
+                      }}
+                    >
+                      Qty
+                    </Table.Th>
+                    <Table.Th
+                      style={{
+                        color: "white",
+                        padding: "12px",
+                        textAlign: "right",
+                      }}
+                    >
+                      Rate
+                    </Table.Th>
+                    <Table.Th
+                      style={{
+                        color: "white",
+                        padding: "12px",
+                        textAlign: "right",
+                      }}
+                    >
+                      Amount
+                    </Table.Th>
+                  </Table.Tr>
+                </Table.Thead>
+                <Table.Tbody>{previewRows}</Table.Tbody>
+              </Table>
+
+              {/* Total Section */}
+              <Flex justify="flex-end" mb="xl">
+                <Box w={256}>
+                  <Group
+                    justify="space-between"
+                    py="xs"
+                    style={{ borderBottom: "1px solid #e9ecef" }}
+                  >
+                    <Text size="sm" fw={500}>
+                      Sub Total
+                    </Text>
+                    <Text size="sm" fw={500}>
+                      {currency} {calculateSubtotal().toFixed(2)}
+                    </Text>
+                  </Group>
+                  {discountValue > 0 && (
+                    <Group
+                      justify="space-between"
+                      py="xs"
+                      style={{ borderBottom: "1px solid #e9ecef" }}
+                    >
+                      <Text size="sm" fw={500} c="red.6">
+                        Discount
+                      </Text>
+                      <Text size="sm" fw={500} c="red.6">
+                        -{currency} {discountValue.toFixed(2)}
+                      </Text>
+                    </Group>
+                  )}
+                  <Group
+                    justify="space-between"
+                    py="md"
+                    style={{ borderBottom: "2px solid #212529" }}
+                  >
+                    <Text fw={700}>Total</Text>
+                    <Text fw={700}>
+                      {currency} {calculateTotal().toFixed(2)}
+                    </Text>
+                  </Group>
+                </Box>
+              </Flex>
+
+              {invoiceData.showAccountDetails && (
+                <Box mb="xl">
+                  <Title order={5} mb="sm" c="gray.9">
+                    Account Details
+                  </Title>
+                  <Stack gap={4}>
+                    <Text size="sm" c="gray.8">
+                      <Text component="span" fw={600}>
+                        {invoiceData.accountHolderKey}:
+                      </Text>{" "}
+                      {invoiceData.accountHolderValue}
+                    </Text>
+                    <Text size="sm" c="gray.8">
+                      <Text component="span" fw={600}>
+                        {invoiceData.accountNumberKey}:
+                      </Text>{" "}
+                      {invoiceData.accountNumberValue}
+                    </Text>
+                    <Text size="sm" c="gray.8">
+                      <Text component="span" fw={600}>
+                        {invoiceData.accountIdKey}:
+                      </Text>{" "}
+                      {invoiceData.accountIdValue}
+                    </Text>
+                    <Text size="sm" c="gray.8">
+                      <Text component="span" fw={600}>
+                        {invoiceData.accountTypeKey}:
+                      </Text>{" "}
+                      {invoiceData.accountTypeValue}
+                    </Text>
+                  </Stack>
+                </Box>
+              )}
+
+              {/* Footer */}
+              <Box mt="300">
+                <Stack gap={5}>
+                  {invoiceData.footer.split("\n").map((line, index) => (
+                    <Text
+                      key={index}
+                      size="sm"
+                      c={line.startsWith("#") ? "blue.5" : "gray.7"}
+                      fw={line.startsWith("#") ? 500 : 400}
+                    >
+                      {line}
+                    </Text>
+                  ))}
+                </Stack>
+              </Box>
+            </Paper>
+          </ScrollArea>
+        </Paper>
+      </SimpleGrid>
+    </Layout>
+  );
+};
+
+export default InvoiceGenerator;

@@ -1,0 +1,16 @@
+<svg width="608" height="202" viewBox="0 0 608 202" fill="none" xmlns="http://www.w3.org/2000/svg">
+<!-- N3 Logo Mark — Geometric travel emblem inspired by the Seyahat/Ahma style -->
+<path d="M68.0866 0.195312L6.51978 201.436H68.0866L128.735 0.195312H68.0866Z" fill="#C0B398"/>
+<path d="M128.728 0.195312L189.836 166.288H129.647L101.85 88.8699L128.728 0.195312Z" fill="#907F6D"/>
+<path d="M190.299 166.291L68.3142 201.21H19.6121L129.881 166.291H190.299Z" fill="#BEA787"/>
+<path d="M85.7771 142.629L101.858 88.8729L190.662 50.8652L175.274 101.532L85.7771 142.629Z" fill="#B9841E"/>
+<path d="M31.3298 120.346L35.4649 106.563L117.248 38.334L102.086 88.1847L31.3298 120.346Z" fill="white"/>
+<path d="M0 122.928L16.165 68.8908L121.38 24.7832L106.218 74.6339L0 122.928Z" fill="#B9841E"/>
+<path d="M153.312 66.8198L129.078 4.90625L70.2361 199.086L188.509 165.546L167.326 105.184" stroke="#6E6755" stroke-width="3.21618"/>
+<!-- Vertical Divider -->
+<line x1="234.162" y1="13.3164" x2="234.162" y2="188.316" stroke="#6E6755" stroke-width="3"/>
+<!-- N3 Text -->
+<text x="260" y="130" font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif" font-weight="900" font-size="145" fill="#6E6755" letter-spacing="-4">N3</text>
+<!-- TRAVELS Text -->
+<text x="260" y="186" font-family="Arial, sans-serif" font-weight="600" font-size="22" fill="#524C3D" letter-spacing="17">TRAVELS</text>
+</svg>

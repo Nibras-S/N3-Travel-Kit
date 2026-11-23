@@ -1,0 +1,101 @@
+.wrapper {
+  width: 100%;
+  container-type: inline-size;
+  font-family: 'Geist', sans-serif;
+  color: #272727;
+}
+
+.footer {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 2.2cqw;
+  width: 100%;
+  min-height: 11.7cqw;
+  padding: 2cqw 2.2cqw;
+}
+
+.brand {
+  flex: 0 0 24%;
+  min-width: 0;
+}
+
+.logo {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.divider {
+  flex: 0 0 1px;
+  height: 3.2cqw;
+  background: rgb(0 0 0 / 35%);
+}
+
+.contact,
+.address {
+  display: flex;
+  align-items: center;
+  gap: 1.2cqw;
+  min-width: 0;
+}
+
+.contact {
+  flex: 0 1 auto;
+  justify-content: center;
+}
+
+.contactCopy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2cqw;
+  min-width: 0;
+}
+
+.icon {
+  flex: 0 0 3.8cqw;
+  width: 3.8cqw;
+  height: 3.8cqw;
+  color: #45b776;
+}
+
+.staffName {
+  color: #38465a;
+  font-size: 1.7cqw;
+  font-weight: 500;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.phoneLine {
+  min-width: 0;
+  font-size: 2.4cqw;
+  font-weight: 700;
+  line-height: 1.25;
+  white-space: nowrap;
+}
+
+.phoneText {
+  display: inline-block;
+}
+
+.address {
+  flex: 0 0 auto;
+}
+
+.addressCopy {
+  white-space: nowrap;
+}
+
+.addressHeading {
+  font-size: 1.7cqw;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.addressLocation {
+  font-size: 1.6cqw;
+  font-weight: 600;
+  line-height: 1.3;
+}
