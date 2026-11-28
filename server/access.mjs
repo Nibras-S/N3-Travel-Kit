@@ -34,7 +34,7 @@ function publicUser(row, admins) {
 
 export function mountAccessRoutes(app, { database, loadUser, admins }) {
   app.get('/api/access', async (_req, res) => {
-    const { userId } = res.locals.auth;
+    const { userId, orgId } = res.locals.auth;
     const sql = database();
     let rows = await sql`SELECT * FROM platform_users WHERE clerk_user_id = ${userId}`;
     if (!rows[0]) {
@@ -50,7 +50,14 @@ export function mountAccessRoutes(app, { database, loadUser, admins }) {
     }
     const row = rows[0];
     const isSuperadmin = admins.has(userId);
-    res.json({ userId, email: row.email, isSuperadmin, ...accessDecision(row, isSuperadmin), planName: row.plan_name, expiresAt: row.expires_at });
+    let decision = accessDecision(row, isSuperadmin);
+    if (decision.allowed && orgId) {
+      let tenants = await sql`SELECT status FROM platform_tenants WHERE clerk_org_id = ${orgId}`;
+      if (!tenants[0]) tenants = await sql`INSERT INTO platform_tenants (clerk_org_id) VALUES (${orgId})
+        ON CONFLICT (clerk_org_id) DO UPDATE SET clerk_org_id = EXCLUDED.clerk_org_id RETURNING status`;
+      if (!isSuperadmin && tenants[0].status === 'paused') decision = { allowed: false, status: 'tenant_paused' };
+    }
+    res.json({ userId, email: row.email, isSuperadmin, ...decision, planName: row.plan_name, expiresAt: row.expires_at });
   });
 
   app.use('/api/platform', (_req, res, next) => {
@@ -69,6 +76,32 @@ export function mountAccessRoutes(app, { database, loadUser, admins }) {
       sql`SELECT count(*)::int AS total FROM platform_users WHERE email ILIKE ${pattern} OR display_name ILIKE ${pattern} OR clerk_user_id ILIKE ${pattern}`,
     ]);
     res.json({ users: rows.map((row) => publicUser(row, admins)), total: totals[0].total });
+  });
+  app.get('/api/platform/tenants', async (req, res) => {
+    const offset = Number(req.query.offset || 0);
+    if (!Number.isSafeInteger(offset) || offset < 0) return res.status(400).json({ error: 'Invalid page.' });
+    const sql = database();
+    const [tenants, totals] = await Promise.all([
+      sql`SELECT t.clerk_org_id AS "tenantId", COALESCE(b.name, 'Business setup pending') AS name,
+        t.status, b.phone, b.email FROM platform_tenants t LEFT JOIN tenant_branding b USING (clerk_org_id)
+        ORDER BY t.created_at DESC, t.clerk_org_id LIMIT 25 OFFSET ${offset}`,
+      sql`SELECT count(*)::int AS total FROM platform_tenants`,
+    ]);
+    res.json({ tenants, total: totals[0].total });
+  });
+  app.patch('/api/platform/tenants/:tenantId', async (req, res) => {
+    const result = z.object({ status: z.enum(['active', 'paused']) }).strict().safeParse(req.body);
+    if (!result.success || !/^org_[a-zA-Z0-9_]+$/.test(req.params.tenantId)) return res.status(400).json({ error: 'Invalid business or status.' });
+    const rows = await database()`WITH updated AS (
+      UPDATE platform_tenants SET status = ${result.data.status}, reviewed_by = ${res.locals.auth.userId}, updated_at = now()
+      WHERE clerk_org_id = ${req.params.tenantId} RETURNING *
+    ), audit AS (
+      INSERT INTO platform_access_audit (subject_user_id, actor_user_id, details)
+      SELECT ${res.locals.auth.userId}, ${res.locals.auth.userId},
+        ${JSON.stringify({ tenantId: req.params.tenantId, status: result.data.status, action: 'tenant_access' })}::jsonb FROM updated
+    ) SELECT clerk_org_id AS "tenantId", status FROM updated`;
+    if (!rows[0]) return res.status(404).json({ error: 'Business not found.' });
+    res.json({ tenant: rows[0] });
   });
   app.patch('/api/platform/users/:userId', async (req, res) => {
     const result = accessUpdateSchema.safeParse(req.body);
@@ -90,11 +123,15 @@ export function mountAccessRoutes(app, { database, loadUser, admins }) {
 
 export function requireApprovedAccess(database, admins) {
   return async (_req, res, next) => {
-    const { userId } = res.locals.auth;
+    const { userId, orgId } = res.locals.auth;
     if (admins.has(userId)) return next();
     const rows = await database()`SELECT status, expires_at FROM platform_users WHERE clerk_user_id = ${userId}`;
     const access = accessDecision(rows[0], false);
     if (!access.allowed) return res.status(403).json({ code: `ACCESS_${access.status.toUpperCase()}`, error: messages[access.status] });
+    if (orgId) {
+      const tenants = await database()`SELECT status FROM platform_tenants WHERE clerk_org_id = ${orgId}`;
+      if (tenants[0]?.status === 'paused') return res.status(403).json({ code: 'ACCESS_TENANT_PAUSED', error: 'This business workspace is paused. Contact the platform administrator.' });
+    }
     next();
   };
 }

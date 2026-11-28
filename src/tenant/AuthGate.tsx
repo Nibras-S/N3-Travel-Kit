@@ -22,7 +22,7 @@ function WorkspaceGate({ children }: { children: ReactNode }) {
 }
 
 function SignedInGate({ children }: { children: ReactNode }) {
-  const { isLoaded, isSignedIn, userId } = useAuth();
+  const { isLoaded, isSignedIn, userId, orgId } = useAuth();
   if (!isLoaded) return <Center mih="100vh"><Loader /></Center>;
   if (!isSignedIn) return (
     <Center mih="100vh"><Stack align="center" p="xl">
@@ -30,7 +30,7 @@ function SignedInGate({ children }: { children: ReactNode }) {
       <SignIn routing="hash" />
     </Stack></Center>
   );
-  return <AccessProvider key={userId}><AccessGate><WorkspaceGate>{children}</WorkspaceGate></AccessGate></AccessProvider>;
+  return <AccessProvider key={`${userId}:${orgId || ''}`}><AccessGate><WorkspaceGate>{children}</WorkspaceGate></AccessGate></AccessProvider>;
 }
 
 export function AuthGate({ children }: { children: ReactNode }) {

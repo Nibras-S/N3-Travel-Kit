@@ -5,7 +5,7 @@ export interface PlatformAccess {
   email: string;
   isSuperadmin: boolean;
   allowed: boolean;
-  status: 'pending' | 'approved' | 'suspended' | 'expired' | 'superadmin';
+  status: 'pending' | 'approved' | 'suspended' | 'expired' | 'superadmin' | 'tenant_paused';
   planName: string;
   expiresAt: string | null;
 }

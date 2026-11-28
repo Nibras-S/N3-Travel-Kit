@@ -19,11 +19,14 @@ test('superadmin approval, plan pause/expiry, and attempted escalation are enfor
   const rows = new Map([
     ['user_owner', { clerk_user_id: 'user_owner', email: 'owner@example.test', status: 'pending', display_name: '', plan_name: 'Standard', expires_at: null }],
     ['user_customer', { clerk_user_id: 'user_customer', email: 'customer@example.test', status: 'pending', display_name: '', plan_name: 'Standard', expires_at: null }],
+    ['user_teammate', { clerk_user_id: 'user_teammate', email: 'teammate@example.test', status: 'approved', display_name: '', plan_name: 'Standard', expires_at: null }],
   ]);
   const audit = [];
+  const tenants = new Map();
   const sessions = {
     owner: { userId: 'user_owner' },
     customer: { userId: 'user_customer', orgId: 'org_customer', orgRole: 'org:admin' },
+    teammate: { userId: 'user_teammate', orgId: 'org_customer', orgRole: 'org:member' },
     fresh: { userId: 'user_fresh' },
   };
   const app = createApp({
@@ -33,6 +36,17 @@ test('superadmin approval, plan pause/expiry, and attempted escalation are enfor
     loadUser: async (id) => ({ id, firstName: 'Verified', lastName: 'Account', primaryEmailAddressId: 'email_server', emailAddresses: [{ id: 'email_server', emailAddress: 'server-verified@example.test' }] }),
     sqlClient: async (strings, ...values) => {
       const statement = strings.join('?');
+      if (statement.includes('UPDATE platform_tenants')) {
+        const [status, , tenantId] = values;
+        if (!tenants.has(tenantId)) return [];
+        tenants.set(tenantId, { status });
+        return [{ tenantId, status }];
+      }
+      if (statement.startsWith('INSERT INTO platform_tenants')) {
+        if (!tenants.has(values[0])) tenants.set(values[0], { status: 'active' });
+        return [tenants.get(values[0])];
+      }
+      if (statement.includes('FROM platform_tenants')) return tenants.has(values[0]) ? [tenants.get(values[0])] : [];
       if (statement.startsWith('WITH updated')) {
         const [status, planName, expiresAt, reviewedBy, userId] = values;
         const row = rows.get(userId);
@@ -69,6 +83,15 @@ test('superadmin approval, plan pause/expiry, and attempted escalation are enfor
   assert.equal((await update('owner', approved, 'user_owner')).status, 403);
   assert.equal((await update('owner', approved)).status, 200);
   assert.equal((await call('/tenant', 'customer')).status, 200);
+  assert.equal((await (await call('/access', 'customer')).json()).allowed, true);
+  const tenantUpdate = (token, status) => call('/platform/tenants/org_customer', token, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status }) });
+  assert.equal((await tenantUpdate('customer', 'paused')).status, 403);
+  assert.equal((await tenantUpdate('owner', 'paused')).status, 200);
+  assert.equal((await call('/tenant', 'customer')).status, 403);
+  assert.equal((await call('/tenant', 'teammate')).status, 403);
+  assert.equal((await (await call('/access', 'customer')).json()).status, 'tenant_paused');
+  assert.equal((await tenantUpdate('owner', 'active')).status, 200);
+  assert.equal((await call('/tenant', 'teammate')).status, 200);
   assert.deepEqual(audit[0], { actor: 'user_owner', subject: 'user_customer' });
   assert.equal((await update('owner', { ...approved, status: 'suspended' })).status, 200);
   assert.equal((await call('/tenant', 'customer')).status, 403); // same signed-in session

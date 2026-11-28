@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { UserButton } from '@clerk/react';
 import { Alert, Badge, Box, Button, Container, Group, Image, Loader, Paper, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core';
 import { usePlatformAccess } from './context';
+import { TenantAdministration } from './TenantAdministration';
 
 interface ManagedUser {
   userId: string;
@@ -73,6 +74,7 @@ export function PlatformAdmin() {
       {error && <Alert color="red">{error}</Alert>}{loading && <Loader size="sm" />}
       <Paper p="md" withBorder radius="md"><Table.ScrollContainer minWidth={900}><Table verticalSpacing="md"><Table.Thead><Table.Tr><Table.Th>Account</Table.Th><Table.Th>Access</Table.Th><Table.Th>Plan</Table.Th><Table.Th>Expires</Table.Th><Table.Th>Action</Table.Th></Table.Tr></Table.Thead><Table.Tbody>{users.map((user) => <UserRow key={`${user.userId}:${user.status}:${user.planName}:${user.expiresAt}`} user={user} onSaved={load} />)}</Table.Tbody></Table></Table.ScrollContainer>{!loading && !users.length && <Text ta="center" c="dimmed" p="xl">No accounts found. Users appear after their first sign-in to the app.</Text>}</Paper>
       <Group justify="space-between"><Text size="sm">{total} account{total === 1 ? '' : 's'}</Text><Group><Button variant="default" disabled={offset === 0 || loading} onClick={() => setOffset(Math.max(0, offset - 25))}>Previous</Button><Button variant="default" disabled={offset + 25 >= total || loading} onClick={() => setOffset(offset + 25)}>Next</Button></Group></Group>
+      <TenantAdministration />
     </Stack></Container>
   </Box>;
 }

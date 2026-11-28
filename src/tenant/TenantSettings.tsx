@@ -3,7 +3,7 @@ import { Alert, Box, Button, FileInput, Group, Image, Paper, SimpleGrid, Stack, 
 import Layout from '../components/Layout';
 import { useTenant } from './context';
 
-export default function TenantSettings() {
+export default function TenantSettings({ onboarding = false }: { onboarding?: boolean }) {
   const { branding, isAdmin, request, refresh } = useTenant();
   const [form, setForm] = useState(branding);
   const [logo, setLogo] = useState<File | null>(null);
@@ -29,8 +29,10 @@ export default function TenantSettings() {
     finally { setBusy(false); }
   }
   return <Layout title="Business settings" withBottomBorder><Box style={{ overflow: 'auto', flex: 1 }} p="xl" bg="#f8fafc"><Paper maw={800} mx="auto" p="xl" radius="lg" withBorder><Stack>
-    <Title order={2}>{branding.name}</Title><Text c="dimmed">Customize your business details for invoices, posters, and brochures. N3 Travel Kit branding stays visible across the platform.</Text>
-    {!isAdmin && <Alert>Only business admins can update these settings.</Alert>}
+    <Title order={2}>{onboarding ? 'Set up your business' : branding.name}</Title>
+    {onboarding && <Alert color="green">Your account is approved. Add your business details and upload your logo to get started. You can update them anytime in Business settings.</Alert>}
+    <Text c="dimmed">Customize your business details for invoices, posters, and brochures. N3 Travel Kit branding stays visible across the platform.</Text>
+    {!isAdmin && <Alert>Ask your business admin to complete the business setup before using the tools.</Alert>}
     {error && <Alert color="red">{error}</Alert>}{message && <Alert color="green">{message}</Alert>}
     <form onSubmit={(e) => { e.preventDefault(); void save(); }}><Stack><fieldset disabled={!isAdmin || busy} style={{ border: 0, padding: 0, margin: 0 }}><Stack>
       <TextInput label="Business name" required maxLength={100} value={form.name} onChange={(e) => setForm({ ...form, name: e.currentTarget.value })} />

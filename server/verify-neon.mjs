@@ -76,6 +76,7 @@ async function verify() {
   assert.equal((await call('/platform/users')).status, 403);
   await setPlan(userA, 'approved');
   await setPlan(userB, 'approved');
+  assert.equal((await (await call('/access')).json()).allowed, true);
   console.log('PASS Access control: pending users denied; superadmin approved fixture accounts');
   const saved = await call('/tenant', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
@@ -133,9 +134,29 @@ async function verify() {
   assert.ok(audit[0].total >= 5);
   console.log('PASS Access control: pause, expiry, reactivation, and audit records verified with the same session');
 
+  async function setTenant(status) {
+    const response = await fetch(`${base}/api/platform/tenants/${orgA}`, {
+      method: 'PATCH', headers: { Authorization: `Bearer ${token}-owner`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status }), signal: AbortSignal.timeout(timeout),
+    });
+    assert.equal(response.status, 200);
+  }
+  assert.equal((await call(`/platform/tenants/${orgA}`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: 'active' }) })).status, 403);
+  await setTenant('paused');
+  assert.equal((await (await call('/access')).json()).status, 'tenant_paused');
+  const blockedTenant = await call('/tenant');
+  assert.equal(blockedTenant.status, 403);
+  assert.equal((await blockedTenant.json()).code, 'ACCESS_TENANT_PAUSED');
+  assert.equal((await call('/tenant', {}, true)).status, 200);
+  await setTenant('active');
+  assert.equal((await call('/tenant')).status, 200);
+  assert.equal((await (await call('/access')).json()).allowed, true);
+  console.log('PASS Business access: superadmin pause/resume blocks the same session, preserves branding, and leaves another tenant accessible');
+
   // Start the actual production entry point separately with its real Clerk
   // middleware, built Vite frontend, and generated Neon environment.
   productionProcess = fork(new URL('./index.mjs', import.meta.url), [], {
+    execArgv: [],
     env: { ...process.env, NODE_ENV: 'production', PORT: '0' },
     stdio: ['ignore', 'ignore', 'pipe', 'ipc'],
   });
@@ -174,7 +195,8 @@ async function cleanup() {
     const key = logoKey || rows[0]?.logo_key;
     if (key && storage) await storage.send(new DeleteObjectCommand({ Bucket: LOGO_BUCKET, Key: key }));
     await sql`DELETE FROM tenant_branding WHERE clerk_org_id IN (${orgA}, ${orgB})`;
-    await sql`DELETE FROM platform_access_audit WHERE subject_user_id IN (${userA}, ${userB})`;
+    await sql`DELETE FROM platform_tenants WHERE clerk_org_id IN (${orgA}, ${orgB})`;
+    await sql`DELETE FROM platform_access_audit WHERE actor_user_id = ${userOwner}`;
     await sql`DELETE FROM platform_users WHERE clerk_user_id IN (${userA}, ${userB})`;
     console.log('PASS Cleanup: temporary verification records, access/audit fixtures, and objects removed');
   }
