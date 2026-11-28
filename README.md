@@ -95,7 +95,7 @@ neon branches delete verify-my-change
 
 ## Vercel deployment
 
-This repository deploys the Vite frontend plus a Node function on Vercel. `api/[...path].js` exports the existing Express API for all `/api/*` paths; it does not start a persistent listener. `vercel.json` selects Vite, `npm run build`, and `dist`. Keep the Vercel project root at the repository root so its `api/` directory is included. The app uses hash navigation, so no catch-all frontend rewrite is needed.
+This repository deploys the Vite frontend plus a Node function on Vercel. `api/index.js` exports the existing Express API without starting a persistent listener. `vercel.json` explicitly rewrites `/api/(.*)` to `/api` so nested paths such as `/api/platform/users` and `/api/tenant/logo` reach the same function with their original URL. A bracket-named function alone did not route nested paths in the deployed Vite project. The configuration selects Vite, `npm run build`, and `dist`. Keep the Vercel project root at the repository root so its `api/` directory is included. The app uses hash navigation, so no catch-all frontend rewrite is needed.
 
 In the **existing Vercel project serving travelkit.n3global.tech**, configure these environment variables for Production (and separately for Preview if needed):
 

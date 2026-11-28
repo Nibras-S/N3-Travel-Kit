@@ -18,7 +18,7 @@ export function AccessProvider({ children }: { children: ReactNode }) {
       if (typeof body.code === 'string' && body.code.startsWith('ACCESS_')) {
         setAccess((current) => current ? { ...current, allowed: false, status: body.code.replace('ACCESS_', '').toLowerCase() as PlatformAccess['status'] } : current);
       }
-      throw new Error(body.error || 'Unable to check app access.');
+      throw new Error(body.error || `Request failed (HTTP ${response.status}). Please try again or contact the platform administrator.`);
     }
     return response;
   }, [getToken]);

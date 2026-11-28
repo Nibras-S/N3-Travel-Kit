@@ -50,7 +50,7 @@ export function TenantAdministration() {
         <Table.Td><Badge color={tenant.status === 'active' ? 'green' : 'orange'}>{tenant.status}</Badge></Table.Td>
         <Table.Td><Button size="xs" color={tenant.status === 'active' ? 'orange' : 'green'} loading={busy === tenant.tenantId} disabled={Boolean(busy) && busy !== tenant.tenantId} onClick={() => void change(tenant)}>{tenant.status === 'active' ? 'Pause business' : 'Resume business'}</Button></Table.Td>
       </Table.Tr>)}</Table.Tbody>
-    </Table></Table.ScrollContainer>{!loading && !tenants.length && <Text ta="center" c="dimmed" p="xl">Businesses appear after an approved user opens their workspace.</Text>}</Paper>
-    <Group justify="space-between"><Text size="sm">{total} businesses</Text><Group><Button variant="default" disabled={offset === 0 || loading || Boolean(busy)} onClick={() => setOffset(Math.max(0, offset - 25))}>Previous businesses</Button><Button variant="default" disabled={offset + 25 >= total || loading || Boolean(busy)} onClick={() => setOffset(offset + 25)}>Next businesses</Button></Group></Group>
+    </Table></Table.ScrollContainer>{!loading && !error && !tenants.length && <Text ta="center" c="dimmed" p="xl">Businesses appear after an approved user opens their workspace.</Text>}</Paper>
+    <Group justify="space-between"><Text size="sm">{error ? 'Business list unavailable' : `${total} businesses`}</Text><Group><Button variant="default" disabled={offset === 0 || loading || Boolean(busy)} onClick={() => setOffset(Math.max(0, offset - 25))}>Previous businesses</Button><Button variant="default" disabled={offset + 25 >= total || loading || Boolean(busy)} onClick={() => setOffset(offset + 25)}>Next businesses</Button></Group></Group>
   </Stack>;
 }
