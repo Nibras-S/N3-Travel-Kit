@@ -64,7 +64,7 @@ async function verify() {
       signal: AbortSignal.timeout(timeout),
     });
   }
-  async function setPlan(userId, status, expiresAt = null, planName = 'Pro') {
+  async function setPlan(userId, status, expiresAt = null, planName = 'Pro Max') {
     const response = await fetch(`${base}/api/platform/users/${userId}`, {
       method: 'PATCH', headers: { Authorization: `Bearer ${token}-owner`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ status, planName, expiresAt }), signal: AbortSignal.timeout(timeout),
@@ -77,11 +77,11 @@ async function verify() {
   await setPlan(userA, 'approved');
   await setPlan(userB, 'approved');
   assert.equal((await (await call('/access')).json()).allowed, true);
-  await setPlan(userA, 'approved', null, 'Plus');
-  assert.deepEqual((await (await call('/access')).json()).allowedTools, ['invoice', 'brochure']);
   await setPlan(userA, 'approved', null, 'Pro');
+  assert.deepEqual((await (await call('/access')).json()).allowedTools, ['flight', 'bahrain', 'qatar', 'uae', 'oman', 'saudi']);
+  await setPlan(userA, 'approved', null, 'Pro Max');
   assert.equal((await (await call('/access')).json()).allowedTools.length, 8);
-  console.log('PASS Plan permissions: Plus allows invoice/brochure; upgrading to Pro allows all eight tools with the same session');
+  console.log('PASS Plan permissions: Pro blocks invoice/brochure; upgrading to Pro Max allows all eight tools with the same session');
   console.log('PASS Access control: pending users denied; superadmin approved fixture accounts');
   const saved = await call('/tenant', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },

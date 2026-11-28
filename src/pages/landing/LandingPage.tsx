@@ -334,7 +334,7 @@ const LandingPage = () => {
     >
       <Box mb="xl"><WorkspaceControls /></Box>
       <Text fw={600} mb="md">{branding.name}</Text>
-      <Badge color={access.planName === 'Pro' ? 'violet' : 'blue'} mb="md">{access.planName} plan</Badge>
+      <Badge color={access.planName === 'Pro Max' ? 'violet' : 'blue'} mb="md">{access.planName} plan</Badge>
       {/* Centered Logo */}
       <Box mb={44} style={{ display: "flex", justifyContent: "center" }}>
         <Image
@@ -358,7 +358,7 @@ const LandingPage = () => {
               key={route.path}
               className="canva-card"
               onClick={() => navigate(route.path)}
-              aria-label={`${route.label}${access.allowedTools?.includes(route.id) ? '' : ' — Locked, upgrade to Pro'}`}
+              aria-label={`${route.label}${access.allowedTools?.includes(route.id) ? '' : ' — Locked, upgrade to Pro Max'}`}
               style={{
                 height: 84,
                 borderRadius: 20,
@@ -386,7 +386,7 @@ const LandingPage = () => {
               >
                 {route.label}
               </Text>
-              {!access.allowedTools?.includes(route.id) && <Badge color="gray" variant="light" size="xs">🔒 Pro · Locked</Badge>}</Stack>
+              {!access.allowedTools?.includes(route.id) && <Badge color="gray" variant="light" size="xs">🔒 Pro Max · Locked</Badge>}</Stack>
 
               {/* Right Side: Micro Tilted Graphic */}
               <CardPreview route={route} />

@@ -5,13 +5,13 @@ import { createApp } from './app.mjs';
 import { accessDecision, accessUpdateSchema } from './access.mjs';
 import { addPlanMonths, allowedTools, normalizePlan, ALL_TOOLS } from '../shared/plans.mjs';
 
-test('Plus allows invoice and brochure only; Pro and superadmins allow all tools; legacy plans default to Plus', () => {
-  assert.deepEqual(allowedTools('Plus'), ['invoice', 'brochure']);
-  assert.deepEqual(allowedTools('Pro'), [...ALL_TOOLS]);
-  assert.deepEqual(allowedTools('Plus', true), [...ALL_TOOLS]);
+test('Pro allows flight and visa tools; Pro Max and superadmins allow all tools; legacy plans default to Pro', () => {
+  assert.deepEqual(allowedTools('Pro'), ['flight', 'bahrain', 'qatar', 'uae', 'oman', 'saudi']);
+  assert.deepEqual(allowedTools('Pro Max'), [...ALL_TOOLS]);
+  assert.deepEqual(allowedTools('Pro', true), [...ALL_TOOLS]);
   for (const plan of ['Standard', 'anything', null, undefined]) {
-    assert.equal(normalizePlan(plan), 'Plus');
-    assert.deepEqual(allowedTools(plan), ['invoice', 'brochure']);
+    assert.equal(normalizePlan(plan), 'Pro');
+    assert.deepEqual(allowedTools(plan), ['flight', 'bahrain', 'qatar', 'uae', 'oman', 'saudi']);
   }
   assert.equal(accessUpdateSchema.safeParse({ status: 'approved', planName: 'anything', expiresAt: null }).success, false);
 });
@@ -20,7 +20,7 @@ test('monthly plans clamp month ends and support leap years', () => {
   assert.equal(addPlanMonths('2026-01-31T12:30:00Z', 1).toISOString(), '2026-02-28T12:30:00.000Z');
   assert.equal(addPlanMonths('2028-01-31T12:30:00Z', 1).toISOString(), '2028-02-29T12:30:00.000Z');
   assert.equal(addPlanMonths('2026-12-31T12:30:00Z', 2).toISOString(), '2027-02-28T12:30:00.000Z');
-  assert.equal(accessUpdateSchema.safeParse({ status: 'approved', planName: 'Plus', expiresAt: null, durationMonths: 3 }).success, false);
+  assert.equal(accessUpdateSchema.safeParse({ status: 'approved', planName: 'Pro', expiresAt: null, durationMonths: 3 }).success, false);
 });
 
 test('approval is denied by default, paused/expired users are denied, and organization roles cannot elevate platform access', () => {
@@ -31,7 +31,7 @@ test('approval is denied by default, paused/expired users are denied, and organi
   assert.equal(accessDecision({ status: 'approved', expires_at: new Date(1000).toISOString() }, false, 1000).status, 'expired');
   assert.equal(accessDecision({ status: 'approved', expires_at: null }, false).allowed, true);
   assert.equal(accessDecision(undefined, true).status, 'superadmin');
-  assert.equal(accessUpdateSchema.safeParse({ status: 'approved', planName: 'Plus', expiresAt: null, isSuperadmin: true }).success, false);
+  assert.equal(accessUpdateSchema.safeParse({ status: 'approved', planName: 'Pro', expiresAt: null, isSuperadmin: true }).success, false);
 });
 
 test('superadmin approval, plan pause/expiry, and attempted escalation are enforced at API boundaries', async (t) => {
@@ -92,7 +92,7 @@ test('superadmin approval, plan pause/expiry, and attempted escalation are enfor
   const base = `http://127.0.0.1:${server.address().port}/api`;
   const call = (path, token, init = {}) => fetch(`${base}${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, ...init.headers } });
   const update = (token, payload, id = 'user_customer') => call(`/platform/users/${id}`, token, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
-  const approved = { status: 'approved', planName: 'Plus', expiresAt: null };
+  const approved = { status: 'approved', planName: 'Pro', expiresAt: null };
   assert.equal((await call('/tenant', 'customer')).status, 403);
   const pendingAccess = await (await call('/access', 'customer')).json();
   assert.equal(pendingAccess.status, 'pending');
@@ -132,12 +132,12 @@ test('superadmin approval, plan pause/expiry, and attempted escalation are enfor
     assert.ok(expiry >= before && expiry <= addPlanMonths(new Date(), durationMonths).getTime());
     assert.equal((await call('/tenant', 'customer')).status, 200);
   }
-  assert.deepEqual((await (await call('/access', 'customer')).json()).allowedTools, ['invoice', 'brochure']);
-  assert.equal((await update('customer', { ...approved, planName: 'Pro' })).status, 403);
-  assert.equal((await update('owner', { ...approved, planName: 'Pro' })).status, 200);
+  assert.deepEqual((await (await call('/access', 'customer')).json()).allowedTools, ['flight', 'bahrain', 'qatar', 'uae', 'oman', 'saudi']);
+  assert.equal((await update('customer', { ...approved, planName: 'Pro Max' })).status, 403);
+  assert.equal((await update('owner', { ...approved, planName: 'Pro Max' })).status, 200);
   assert.deepEqual((await (await call('/access', 'customer')).json()).allowedTools, [...ALL_TOOLS]);
   assert.equal((await update('owner', approved)).status, 200);
-  assert.deepEqual((await (await call('/access', 'customer')).json()).allowedTools, ['invoice', 'brochure']);
+  assert.deepEqual((await (await call('/access', 'customer')).json()).allowedTools, ['flight', 'bahrain', 'qatar', 'uae', 'oman', 'saudi']);
 });
 
 test('only superadmins can see workspace identities; Clerk names and members identify businesses without branding', async (t) => {

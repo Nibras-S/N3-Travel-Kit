@@ -9,13 +9,13 @@ export function addPlanMonths(value, months) {
   return date;
 }
 
-export const PLUS_TOOLS = Object.freeze(['invoice', 'brochure']);
+export const PRO_TOOLS = Object.freeze(['flight', 'bahrain', 'qatar', 'uae', 'oman', 'saudi']);
 export const ALL_TOOLS = Object.freeze(['invoice', 'flight', 'brochure', 'bahrain', 'qatar', 'uae', 'oman', 'saudi']);
 
 export function normalizePlan(plan) {
-  return typeof plan === 'string' && plan.trim().toLowerCase() === 'pro' ? 'Pro' : 'Plus';
+  return typeof plan === 'string' && plan.trim().toLowerCase() === 'pro max' ? 'Pro Max' : 'Pro';
 }
 
 export function allowedTools(plan, isSuperadmin = false) {
-  return [...(isSuperadmin || normalizePlan(plan) === 'Pro' ? ALL_TOOLS : PLUS_TOOLS)];
+  return [...(isSuperadmin || normalizePlan(plan) === 'Pro Max' ? ALL_TOOLS : PRO_TOOLS)];
 }
