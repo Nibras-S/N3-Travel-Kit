@@ -17,6 +17,7 @@ test('API isolates organizations and enforces branding permissions', async (t) =
     org_b: { name: 'Agency B', address_line1: 'B Street', address_line2: '', phone: '222', additional_phone: '', email: '', logo_key: 'tenants/org_b/logos/b' },
   };
   const app = createApp({
+    platformAdminIds: new Set(['user_a', 'user_b', 'user_c']),
     authMiddleware: (_req, _res, next) => next(),
     readAuth: (req) => sessions[req.headers.authorization?.replace('Bearer ', '')] || {},
     sqlClient: async (strings, ...values) => {

@@ -39,6 +39,23 @@ Every tenant API request requires a Clerk bearer session token and an active org
 
 Switching organizations/users unmounts tool state. Poster contacts and brochure API preferences are isolated by organization + user. Existing unscoped browser preferences are not automatically imported. Generated invoice/poster/brochure files remain browser-local/exported; the backend currently persists business branding and logos, not a document archive. Changes made in another tab/user's session are loaded on refresh.
 
+## Platform superadmin and user approval
+
+Clerk organization admins manage their own business; platform superadmins manage app access across users. These are separate privileges. Configure trusted platform superadmins by their Clerk **user IDs**, comma-separated, in the server-only `SUPERADMIN_USER_IDS` variable, then restart the API. Never use a frontend variable, a browser-submitted email, organization role, or editable user metadata to grant this privilege. The same email has different user IDs in Clerk development and production; configure the correct IDs for each environment.
+
+After a user's first sign-in, `/api/access` registers their verified Clerk identity with `pending` access. Only a platform superadmin can approve, pause, or set their plan name and expiry at `/#/admin`. A superadmin can open this page without creating a business organization. Approved users still need an organization to use the tools. Approval and plan state apply to a user across all their workspaces.
+
+- **Pending:** cannot use the tools until approved.
+- **Approved:** allowed while the plan is unexpired. An empty expiry means no automatic expiry.
+- **Paused:** server access is blocked immediately, even with an existing Clerk session.
+- **Expired:** server access is blocked at the expiry time until renewed.
+
+Every tenant API call checks current approval/expiry in Postgres. The frontend rechecks on focus and every 30 seconds, and locks when an API reports revoked access. Platform account changes are recorded atomically in `platform_access_audit`. Superadmins cannot grant new superadmins or pause another superadmin through the app; those IDs are managed through the server configuration. These controls manage app access only; there is no payment processor or automated billing cancellation.
+
+### Why Clerk shows Development mode
+
+A production Neon branch and a production Vite build do not change the Clerk instance. `pk_test_`/`sk_test_` keys identify Clerk development; the sign-in component displays that label deliberately. A public release needs a Clerk production instance configured with your owned domain, its DNS records and OAuth credentials, plus the matching `pk_live_`/`sk_live_` keys on the app host. Clerk development users are not automatically copied to production. Do not hide the label or replace key prefixes manually. See [Clerk production setup](https://clerk.com/docs/guides/development/deployment/production).
+
 ## Verification
 
 ```bash
@@ -50,6 +67,7 @@ npm run verify:neon
 
 `npm test` runs isolated validation/authorization tests without contacting Neon. `npm run verify:neon` is an explicit live check against the branch currently loaded from the private environment file. Apply `npm run db:migrate` first. It:
 
+- Checks that pending users are denied; a fixture superadmin approves them through the API. It verifies pause, expiry, reactivation, and audit rows using the same session.
 - Writes and reads unique test branding records through the actual app API and real Neon database.
 - Uploads/downloads identical PNG bytes, checks that anonymous reads are denied, and tests cross-tenant access against the private storage bucket.
 - Removes the logo from Postgres and storage and checks that it is gone.

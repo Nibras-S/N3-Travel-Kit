@@ -36,7 +36,7 @@ const App = () => {
 
   // Redirect invalid routes to home
   useEffect(() => {
-    if (currentPath && currentPath !== "settings" && !matchedRoute) {
+    if (currentPath && currentPath !== "settings" && currentPath !== "admin" && !matchedRoute) {
       navigateHome();
     }
   }, [currentPath, matchedRoute]);

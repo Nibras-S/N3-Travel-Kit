@@ -1,12 +1,13 @@
 import express from 'express';
-import { clerkMiddleware, getAuth } from '@clerk/express';
+import { clerkMiddleware, getAuth, clerkClient } from '@clerk/express';
 import { neon } from '@neondatabase/serverless';
 import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { createObjectStorage, LOGO_BUCKET } from './storage.mjs';
 import { randomUUID } from 'node:crypto';
+import { mountAccessRoutes, requireApprovedAccess, superadminIds } from './access.mjs';
 import { brandingSchema, tenantIdentity, imageType } from './security.mjs';
 
-export function createApp({ authMiddleware = clerkMiddleware(), readAuth = getAuth, sqlClient, objectClient } = {}) {
+export function createApp({ authMiddleware = clerkMiddleware(), readAuth = getAuth, sqlClient, objectClient, loadUser = (id) => clerkClient.users.getUser(id), platformAdminIds = superadminIds() } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
@@ -14,10 +15,9 @@ export function createApp({ authMiddleware = clerkMiddleware(), readAuth = getAu
   app.use('/api', authMiddleware);
   app.use('/api', (req, res, next) => {
     if (!req.headers.authorization?.startsWith('Bearer ')) return res.status(401).json({ error: 'A session token is required.' });
-    const identity = tenantIdentity(readAuth(req));
-    if (identity.error) return res.status(identity.status).json({ error: identity.error });
-    if (req.headers['x-tenant-id'] && req.headers['x-tenant-id'] !== identity.orgId) return res.status(409).json({ error: 'Workspace changed. Please retry in the active business.' });
-    res.locals.tenant = identity;
+    const auth = readAuth(req);
+    if (!auth.userId) return res.status(401).json({ error: 'Sign in to continue.' });
+    res.locals.auth = auth;
     next();
   });
   const database = () => {
@@ -25,6 +25,17 @@ export function createApp({ authMiddleware = clerkMiddleware(), readAuth = getAu
     if (!process.env.DATABASE_URL) throw new Error('Database is not configured.');
     return neon(process.env.DATABASE_URL);
   };
+  app.use('/api/platform', express.json({ limit: '16kb' }));
+  mountAccessRoutes(app, { database, loadUser, admins: platformAdminIds });
+  // Approval and expiry are checked from the database on every tenant API call.
+  app.use('/api', requireApprovedAccess(database, platformAdminIds));
+  app.use('/api', (req, res, next) => {
+    const identity = tenantIdentity(res.locals.auth);
+    if (identity.error) return res.status(identity.status).json({ error: identity.error });
+    if (req.headers['x-tenant-id'] && req.headers['x-tenant-id'] !== identity.orgId) return res.status(409).json({ error: 'Workspace changed. Please retry in the active business.' });
+    res.locals.tenant = identity;
+    next();
+  });
   let storageClient = objectClient;
   const storage = () => storageClient ||= createObjectStorage();
   const profile = (row) => row ? {

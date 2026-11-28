@@ -17,6 +17,9 @@ const fixtureId = randomUUID().replaceAll('-', '');
 const orgA = `org_neon_verify_${fixtureId}_a`;
 const orgB = `org_neon_verify_${fixtureId}_b`;
 const token = randomUUID();
+const userA = `user_verify_${fixtureId}`;
+const userB = `user_verify_other_${fixtureId}`;
+const userOwner = `user_verify_owner_${fixtureId}`;
 const png = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jLp8AAAAASUVORK5CYII=', 'base64');
 let fixtureServer;
 let productionProcess;
@@ -40,11 +43,14 @@ async function verify() {
   assert.equal(probe.ready, 1);
   console.log('PASS Postgres: live query succeeded');
 
+  await sql`INSERT INTO platform_users (clerk_user_id, email, display_name) VALUES (${userA}, 'verify-a@example.test', 'Verification A'), (${userB}, 'verify-b@example.test', 'Verification B')`;
   const app = createApp({
+    platformAdminIds: new Set([userOwner]),
     authMiddleware: (_req, _res, next) => next(),
     readAuth: (req) => {
-      if (req.headers.authorization === `Bearer ${token}`) return { userId: `user_verify_${fixtureId}`, orgId: orgA, orgRole: 'org:admin' };
-      if (req.headers.authorization === `Bearer ${token}-other`) return { userId: `user_verify_other_${fixtureId}`, orgId: orgB, orgRole: 'org:member' };
+      if (req.headers.authorization === `Bearer ${token}`) return { userId: userA, orgId: orgA, orgRole: 'org:admin' };
+      if (req.headers.authorization === `Bearer ${token}-other`) return { userId: userB, orgId: orgB, orgRole: 'org:member' };
+      if (req.headers.authorization === `Bearer ${token}-owner`) return { userId: userOwner };
       return {};
     },
   });
@@ -58,6 +64,19 @@ async function verify() {
       signal: AbortSignal.timeout(timeout),
     });
   }
+  async function setPlan(userId, status, expiresAt = null) {
+    const response = await fetch(`${base}/api/platform/users/${userId}`, {
+      method: 'PATCH', headers: { Authorization: `Bearer ${token}-owner`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status, planName: 'Verification', expiresAt }), signal: AbortSignal.timeout(timeout),
+    });
+    assert.equal(response.status, 200, `Plan update returned ${response.status}`);
+  }
+  assert.equal((await call('/tenant')).status, 403);
+  assert.equal((await (await call('/access')).json()).status, 'pending');
+  assert.equal((await call('/platform/users')).status, 403);
+  await setPlan(userA, 'approved');
+  await setPlan(userB, 'approved');
+  console.log('PASS Access control: pending users denied; superadmin approved fixture accounts');
   const saved = await call('/tenant', {
     method: 'PUT', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: 'Neon Verification Fixture', addressLine1: 'Verification address', addressLine2: '', phone: '0000000000', additionalPhone: '', email: '' }),
@@ -100,6 +119,20 @@ async function verify() {
   logoKey = undefined;
   console.log('PASS Object Storage: app API removed logo from both Postgres and object storage');
 
+  await setPlan(userA, 'suspended');
+  const paused = await call('/tenant');
+  assert.equal(paused.status, 403);
+  assert.equal((await paused.json()).code, 'ACCESS_SUSPENDED');
+  await setPlan(userA, 'approved', '2020-01-01T00:00:00Z');
+  const expired = await call('/tenant');
+  assert.equal(expired.status, 403);
+  assert.equal((await expired.json()).code, 'ACCESS_EXPIRED');
+  await setPlan(userA, 'approved');
+  assert.equal((await call('/tenant')).status, 200);
+  const audit = await sql`SELECT count(*)::int AS total FROM platform_access_audit WHERE actor_user_id = ${userOwner}`;
+  assert.ok(audit[0].total >= 5);
+  console.log('PASS Access control: pause, expiry, reactivation, and audit records verified with the same session');
+
   // Start the actual production entry point separately with its real Clerk
   // middleware, built Vite frontend, and generated Neon environment.
   productionProcess = fork(new URL('./index.mjs', import.meta.url), [], {
@@ -141,7 +174,9 @@ async function cleanup() {
     const key = logoKey || rows[0]?.logo_key;
     if (key && storage) await storage.send(new DeleteObjectCommand({ Bucket: LOGO_BUCKET, Key: key }));
     await sql`DELETE FROM tenant_branding WHERE clerk_org_id IN (${orgA}, ${orgB})`;
-    console.log('PASS Cleanup: temporary verification records and objects removed');
+    await sql`DELETE FROM platform_access_audit WHERE subject_user_id IN (${userA}, ${userB})`;
+    await sql`DELETE FROM platform_users WHERE clerk_user_id IN (${userA}, ${userB})`;
+    console.log('PASS Cleanup: temporary verification records, access/audit fixtures, and objects removed');
   }
 }
 

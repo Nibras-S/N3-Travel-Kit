@@ -1,0 +1,83 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { once } from 'node:events';
+import { createApp } from './app.mjs';
+import { accessDecision, accessUpdateSchema } from './access.mjs';
+
+test('approval is denied by default, paused/expired users are denied, and organization roles cannot elevate platform access', () => {
+  assert.deepEqual(accessDecision(undefined, false), { allowed: false, status: 'pending' });
+  assert.equal(accessDecision({ status: 'pending' }, false).allowed, false);
+  assert.equal(accessDecision({ status: 'suspended' }, false).status, 'suspended');
+  assert.equal(accessDecision({ status: 'approved', expires_at: '2020-01-01T00:00:00Z' }, false).status, 'expired');
+  assert.equal(accessDecision({ status: 'approved', expires_at: new Date(1000).toISOString() }, false, 1000).status, 'expired');
+  assert.equal(accessDecision({ status: 'approved', expires_at: null }, false).allowed, true);
+  assert.equal(accessDecision(undefined, true).status, 'superadmin');
+  assert.equal(accessUpdateSchema.safeParse({ status: 'approved', planName: 'Standard', expiresAt: null, isSuperadmin: true }).success, false);
+});
+
+test('superadmin approval, plan pause/expiry, and attempted escalation are enforced at API boundaries', async (t) => {
+  const rows = new Map([
+    ['user_owner', { clerk_user_id: 'user_owner', email: 'owner@example.test', status: 'pending', display_name: '', plan_name: 'Standard', expires_at: null }],
+    ['user_customer', { clerk_user_id: 'user_customer', email: 'customer@example.test', status: 'pending', display_name: '', plan_name: 'Standard', expires_at: null }],
+  ]);
+  const audit = [];
+  const sessions = {
+    owner: { userId: 'user_owner' },
+    customer: { userId: 'user_customer', orgId: 'org_customer', orgRole: 'org:admin' },
+    fresh: { userId: 'user_fresh' },
+  };
+  const app = createApp({
+    authMiddleware: (_req, _res, next) => next(),
+    readAuth: (req) => sessions[req.headers.authorization?.replace('Bearer ', '')] || {},
+    platformAdminIds: new Set(['user_owner']),
+    loadUser: async (id) => ({ id, firstName: 'Verified', lastName: 'Account', primaryEmailAddressId: 'email_server', emailAddresses: [{ id: 'email_server', emailAddress: 'server-verified@example.test' }] }),
+    sqlClient: async (strings, ...values) => {
+      const statement = strings.join('?');
+      if (statement.startsWith('WITH updated')) {
+        const [status, planName, expiresAt, reviewedBy, userId] = values;
+        const row = rows.get(userId);
+        if (!row) return [];
+        Object.assign(row, { status, plan_name: planName, expires_at: expiresAt, reviewed_by: reviewedBy });
+        audit.push({ actor: reviewedBy, subject: userId });
+        return [row];
+      }
+      if (statement.startsWith('INSERT INTO platform_users')) {
+        const [id, email, name] = values;
+        const row = { clerk_user_id: id, email, display_name: name, status: 'pending', plan_name: 'Standard', expires_at: null };
+        rows.set(id, row); return [row];
+      }
+      if (statement.includes('count(*)')) return [{ total: rows.size }];
+      if (statement.includes('FROM platform_users') && statement.includes('ILIKE')) return [...rows.values()];
+      if (statement.includes('FROM platform_users')) return rows.has(values[0]) ? [rows.get(values[0])] : [];
+      if (statement.includes('FROM tenant_branding')) return [];
+      throw new Error('Unexpected test query');
+    },
+  });
+  const server = app.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(() => new Promise((resolve) => { server.closeAllConnections(); server.close(resolve); }));
+  const base = `http://127.0.0.1:${server.address().port}/api`;
+  const call = (path, token, init = {}) => fetch(`${base}${path}`, { ...init, headers: { Authorization: `Bearer ${token}`, ...init.headers } });
+  const update = (token, payload, id = 'user_customer') => call(`/platform/users/${id}`, token, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+  const approved = { status: 'approved', planName: 'Standard', expiresAt: null };
+  assert.equal((await call('/tenant', 'customer')).status, 403);
+  assert.equal((await (await call('/access', 'customer')).json()).status, 'pending');
+  assert.equal((await call('/platform/users', 'customer')).status, 403);
+  assert.equal((await update('customer', approved)).status, 403);
+  assert.equal((await call('/platform/users', 'owner')).status, 200); // no organization required
+  assert.equal((await update('owner', { ...approved, isSuperadmin: true })).status, 400);
+  assert.equal((await update('owner', approved, 'user_owner')).status, 403);
+  assert.equal((await update('owner', approved)).status, 200);
+  assert.equal((await call('/tenant', 'customer')).status, 200);
+  assert.deepEqual(audit[0], { actor: 'user_owner', subject: 'user_customer' });
+  assert.equal((await update('owner', { ...approved, status: 'suspended' })).status, 200);
+  assert.equal((await call('/tenant', 'customer')).status, 403); // same signed-in session
+  assert.equal((await (await call('/access', 'customer')).json()).status, 'suspended');
+  assert.equal((await update('owner', { ...approved, expiresAt: '2020-01-01T00:00:00Z' })).status, 200);
+  assert.equal((await call('/tenant', 'customer')).status, 403);
+  assert.equal((await (await call('/access', 'customer')).json()).status, 'expired');
+  const fresh = await (await call('/access', 'fresh')).json();
+  assert.equal(fresh.allowed, false);
+  assert.equal(fresh.email, 'server-verified@example.test');
+  assert.equal(fresh.isSuperadmin, false);
+});
