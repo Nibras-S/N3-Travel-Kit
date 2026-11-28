@@ -89,6 +89,22 @@ npm run verify:neon
 neon branches delete verify-my-change
 ```
 
+## Vercel deployment
+
+This repository deploys the Vite frontend plus a Node function on Vercel. `api/[...path].js` exports the existing Express API for all `/api/*` paths; it does not start a persistent listener. `vercel.json` selects Vite, `npm run build`, and `dist`. Keep the Vercel project root at the repository root so its `api/` directory is included. The app uses hash navigation, so no catch-all frontend rewrite is needed.
+
+In the **existing Vercel project serving travelkit.n3global.tech**, configure these environment variables for Production (and separately for Preview if needed):
+
+- `VITE_CLERK_PUBLISHABLE_KEY` — frontend build configuration.
+- `CLERK_PUBLISHABLE_KEY` (or the same `VITE_CLERK_PUBLISHABLE_KEY`) and `CLERK_SECRET_KEY` — API authentication, from the same Clerk instance.
+- `SUPERADMIN_USER_IDS` — the trusted Clerk user IDs for that instance.
+- `DATABASE_URL` — Neon connection string. The already-applied schema must exist in this database.
+- `AWS_ENDPOINT_URL_S3`, `AWS_REGION`, `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY` — the selected Neon branch's storage configuration.
+
+Private local `.env` files are not deployed configuration. Add their server values through Vercel's environment settings or authenticated CLI without committing them, then redeploy the existing project. `DATABASE_URL_UNPOOLED` is only needed when running migrations; normal API requests use `DATABASE_URL`.
+
+After deployment, `/api/health` must return HTTP 200 with `{"ok":true}`, and `/api/access` without a session must return HTTP 401 JSON. A Vercel `NOT_FOUND` response means the function was not deployed or the project root/routing is incorrect. A configured frontend alone cannot serve these endpoints. The Clerk development-key warning is separate from API routing.
+
 ## Production app hosting
 
 Configure the frontend publishable key before building. Configure server secrets at runtime. Run `NODE_ENV=production npm start` to serve the built frontend and `/api` from one origin. Default port is 3001; override with `PORT`. For a separately hosted frontend, reverse-proxy `/api` to the Express service. A static-only host cannot run the API. Configure Clerk's production instance/allowed domains before a public release.
