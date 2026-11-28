@@ -3,6 +3,14 @@ import assert from 'node:assert/strict';
 import { once } from 'node:events';
 import { createApp } from './app.mjs';
 import { accessDecision, accessUpdateSchema } from './access.mjs';
+import { addPlanMonths } from '../shared/plans.mjs';
+
+test('monthly plans clamp month ends and support leap years', () => {
+  assert.equal(addPlanMonths('2026-01-31T12:30:00Z', 1).toISOString(), '2026-02-28T12:30:00.000Z');
+  assert.equal(addPlanMonths('2028-01-31T12:30:00Z', 1).toISOString(), '2028-02-29T12:30:00.000Z');
+  assert.equal(addPlanMonths('2026-12-31T12:30:00Z', 2).toISOString(), '2027-02-28T12:30:00.000Z');
+  assert.equal(accessUpdateSchema.safeParse({ status: 'approved', planName: 'Standard', expiresAt: null, durationMonths: 3 }).success, false);
+});
 
 test('approval is denied by default, paused/expired users are denied, and organization roles cannot elevate platform access', () => {
   assert.deepEqual(accessDecision(undefined, false), { allowed: false, status: 'pending' });
@@ -103,4 +111,44 @@ test('superadmin approval, plan pause/expiry, and attempted escalation are enfor
   assert.equal(fresh.allowed, false);
   assert.equal(fresh.email, 'server-verified@example.test');
   assert.equal(fresh.isSuperadmin, false);
+  for (const durationMonths of [1, 2]) {
+    const before = addPlanMonths(new Date(), durationMonths).getTime();
+    assert.equal((await update('owner', { ...approved, durationMonths })).status, 200);
+    const expiry = new Date(rows.get('user_customer').expires_at).getTime();
+    assert.ok(expiry >= before && expiry <= addPlanMonths(new Date(), durationMonths).getTime());
+    assert.equal((await call('/tenant', 'customer')).status, 200);
+  }
+});
+
+test('only superadmins can see workspace identities; Clerk names and members identify businesses without branding', async (t) => {
+  const calls = [];
+  const app = createApp({
+    authMiddleware: (_req, _res, next) => next(),
+    readAuth: (req) => ({ userId: req.headers.authorization === 'Bearer owner' ? 'user_owner' : 'user_member' }),
+    platformAdminIds: new Set(['user_owner']),
+    sqlClient: async (strings) => strings.join('').includes('count(*)') ? [{ total: 2 }] : [
+      { tenantId: 'org_one', name: null, status: 'active', email: '', phone: '' },
+      { tenantId: 'org_two', name: 'Saved business name', status: 'paused', email: '', phone: '' },
+    ],
+    loadTenantIdentity: async (id) => {
+      calls.push(id);
+      if (id === 'org_two') throw new Error('Clerk unavailable');
+      return { name: 'N3 Travels', memberCount: 1, members: [{ userId: 'user_owner', name: 'Nibras', identifier: 'owner@example.test', role: 'org:admin' }] };
+    },
+  });
+  const server = app.listen(0, '127.0.0.1');
+  await once(server, 'listening');
+  t.after(() => new Promise((resolve) => { server.closeAllConnections(); server.close(resolve); }));
+  const base = `http://127.0.0.1:${server.address().port}/api/platform/tenants`;
+  assert.equal((await fetch(base, { headers: { Authorization: 'Bearer member' } })).status, 403);
+  assert.equal(calls.length, 0);
+  const response = await fetch(base, { headers: { Authorization: 'Bearer owner' } });
+  assert.equal(response.status, 200);
+  const body = await response.json();
+  assert.equal(body.tenants[0].name, 'N3 Travels');
+  assert.equal(body.tenants[0].members[0].identifier, 'owner@example.test');
+  assert.equal(body.tenants[0].members[0].role, 'org:admin');
+  assert.equal(body.tenants[1].name, 'Saved business name');
+  assert.equal(body.tenants[1].identityUnavailable, true);
+  assert.equal(body.total, 2);
 });

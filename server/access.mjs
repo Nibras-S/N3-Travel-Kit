@@ -1,4 +1,5 @@
 import { z } from 'zod';
+import { addPlanMonths } from '../shared/plans.mjs';
 
 export function superadminIds(env = process.env) {
   return new Set((env.SUPERADMIN_USER_IDS || '').split(',').map((id) => id.trim()).filter(Boolean));
@@ -22,6 +23,7 @@ export const accessUpdateSchema = z.object({
   status: z.enum(['pending', 'approved', 'suspended']),
   planName: z.string().trim().min(1).max(60),
   expiresAt: z.union([z.iso.datetime({ offset: true }), z.null()]),
+  durationMonths: z.union([z.literal(1), z.literal(2)]).optional(),
 }).strict();
 
 function publicUser(row, admins) {
@@ -32,7 +34,7 @@ function publicUser(row, admins) {
   };
 }
 
-export function mountAccessRoutes(app, { database, loadUser, admins }) {
+export function mountAccessRoutes(app, { database, loadUser, loadTenantIdentity, admins }) {
   app.get('/api/access', async (_req, res) => {
     const { userId, orgId } = res.locals.auth;
     const sql = database();
@@ -82,12 +84,25 @@ export function mountAccessRoutes(app, { database, loadUser, admins }) {
     if (!Number.isSafeInteger(offset) || offset < 0) return res.status(400).json({ error: 'Invalid page.' });
     const sql = database();
     const [tenants, totals] = await Promise.all([
-      sql`SELECT t.clerk_org_id AS "tenantId", COALESCE(b.name, 'Business setup pending') AS name,
+      sql`SELECT t.clerk_org_id AS "tenantId", b.name,
         t.status, b.phone, b.email FROM platform_tenants t LEFT JOIN tenant_branding b USING (clerk_org_id)
         ORDER BY t.created_at DESC, t.clerk_org_id LIMIT 25 OFFSET ${offset}`,
       sql`SELECT count(*)::int AS total FROM platform_tenants`,
     ]);
-    res.json({ tenants, total: totals[0].total });
+    // Bound Clerk concurrency; a failed lookup must not hide the other businesses.
+    const enriched = [];
+    for (let i = 0; i < tenants.length; i += 4) {
+      enriched.push(...await Promise.all(tenants.slice(i, i + 4).map(async (tenant) => {
+        try {
+          const identity = await loadTenantIdentity(tenant.tenantId);
+          return { ...tenant, name: tenant.name || identity.name, workspaceName: identity.name,
+            members: identity.members, memberCount: identity.memberCount, identityUnavailable: false };
+        } catch {
+          return { ...tenant, name: tenant.name || 'Business details unavailable', members: [], memberCount: null, identityUnavailable: true };
+        }
+      })));
+    }
+    res.json({ tenants: enriched, total: totals[0].total });
   });
   app.patch('/api/platform/tenants/:tenantId', async (req, res) => {
     const result = z.object({ status: z.enum(['active', 'paused']) }).strict().safeParse(req.body);
@@ -107,14 +122,15 @@ export function mountAccessRoutes(app, { database, loadUser, admins }) {
     const result = accessUpdateSchema.safeParse(req.body);
     if (!result.success || !/^user_[a-zA-Z0-9_]+$/.test(req.params.userId)) return res.status(400).json({ error: 'Check the status, plan name, and expiry date.' });
     if (admins.has(req.params.userId)) return res.status(403).json({ error: 'Superadmins are managed through the server configuration.' });
-    const { status, planName, expiresAt } = result.data;
+    const { status, planName, durationMonths } = result.data;
+    const expiresAt = durationMonths ? addPlanMonths(new Date(), durationMonths).toISOString() : result.data.expiresAt;
     const rows = await database()`WITH updated AS (
       UPDATE platform_users SET status = ${status}, plan_name = ${planName}, expires_at = ${expiresAt},
         reviewed_by = ${res.locals.auth.userId}, updated_at = now()
       WHERE clerk_user_id = ${req.params.userId} RETURNING *
     ), audit AS (
       INSERT INTO platform_access_audit (subject_user_id, actor_user_id, details)
-      SELECT clerk_user_id, ${res.locals.auth.userId}, ${JSON.stringify({ status, planName, expiresAt })}::jsonb FROM updated
+      SELECT clerk_user_id, ${res.locals.auth.userId}, ${JSON.stringify({ status, planName, expiresAt, ...(durationMonths ? { durationMonths } : {}) })}::jsonb FROM updated
     ) SELECT * FROM updated`;
     if (!rows[0]) return res.status(404).json({ error: 'This account has not requested app access yet.' });
     res.json({ user: publicUser(rows[0], admins) });

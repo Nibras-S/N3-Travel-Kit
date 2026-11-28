@@ -56,6 +56,10 @@ New accounts see an approval-request confirmation and cannot enter the tools. Af
 
 The **Business workspaces** section at `/#/admin` separately pauses/resumes an entire tenant. Workspaces register after an approved user opens them. A paused workspace blocks every regular member at the API, including existing sessions. Other workspaces remain accessible. Resuming does not bypass individual approval or expired plans. Platform superadmins retain access for administration. Tenant status changes are audited with the tenant ID in `platform_access_audit.details`. Run `npm run db:migrate` before deploying code that uses the new `platform_tenants` table.
 
+Business rows show the saved branding name, falling back to the current Clerk organization name, plus up to five current member names/identifiers and roles. Member lookups are server-side and restricted to superadmins. If Clerk cannot resolve a workspace, the row displays a lookup warning and disables pause/resume until it can be identified.
+
+Account expiry supports **1 month from now**, **2 months from now**, **Custom expiry**, and **No expiry**. Monthly durations are calculated on the server when Save access is clicked, using calendar months and clamping to the last day of shorter months. Choose Approved separately to grant access. Saving a duration replaces the previous expiry; it does not add time to the old date. Pausing an account or business does not extend its expiry.
+
 ### Why Clerk shows Development mode
 
 A production Neon branch and a production Vite build do not change the Clerk instance. `pk_test_`/`sk_test_` keys identify Clerk development; the sign-in component displays that label deliberately. A public release needs a Clerk production instance configured with your owned domain, its DNS records and OAuth credentials, plus the matching `pk_live_`/`sk_live_` keys on the app host. Clerk development users are not automatically copied to production. Do not hide the label or replace key prefixes manually. See [Clerk production setup](https://clerk.com/docs/guides/development/deployment/production).

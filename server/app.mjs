@@ -7,7 +7,20 @@ import { randomUUID } from 'node:crypto';
 import { mountAccessRoutes, requireApprovedAccess, superadminIds } from './access.mjs';
 import { brandingSchema, tenantIdentity, imageType } from './security.mjs';
 
-export function createApp({ authMiddleware = clerkMiddleware(), readAuth = getAuth, sqlClient, objectClient, loadUser = (id) => clerkClient.users.getUser(id), platformAdminIds = superadminIds() } = {}) {
+export function createApp({ authMiddleware = clerkMiddleware(), readAuth = getAuth, sqlClient, objectClient, loadUser = (id) => clerkClient.users.getUser(id), loadTenantIdentity = async (organizationId) => {
+  const [organization, memberships] = await Promise.all([
+    clerkClient.organizations.getOrganization({ organizationId }),
+    clerkClient.organizations.getOrganizationMembershipList({ organizationId, limit: 5, orderBy: '+created_at' }),
+  ]);
+  return {
+    name: organization.name, memberCount: memberships.totalCount,
+    members: memberships.data.map((membership) => ({
+      userId: membership.publicUserData?.userId || '',
+      name: [membership.publicUserData?.firstName, membership.publicUserData?.lastName].filter(Boolean).join(' '),
+      identifier: membership.publicUserData?.identifier || '', role: membership.role,
+    })),
+  };
+}, platformAdminIds = superadminIds() } = {}) {
   const app = express();
   app.disable('x-powered-by');
   app.use('/api', (_req, res, next) => { res.set('Cache-Control', 'no-store'); next(); });
@@ -26,7 +39,7 @@ export function createApp({ authMiddleware = clerkMiddleware(), readAuth = getAu
     return neon(process.env.DATABASE_URL);
   };
   app.use('/api/platform', express.json({ limit: '16kb' }));
-  mountAccessRoutes(app, { database, loadUser, admins: platformAdminIds });
+  mountAccessRoutes(app, { database, loadUser, loadTenantIdentity, admins: platformAdminIds });
   // Approval and expiry are checked from the database on every tenant API call.
   app.use('/api', requireApprovedAccess(database, platformAdminIds));
   app.use('/api', (req, res, next) => {

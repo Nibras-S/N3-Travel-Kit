@@ -3,6 +3,7 @@ import { UserButton } from '@clerk/react';
 import { Alert, Badge, Box, Button, Container, Group, Image, Loader, Paper, Select, Stack, Table, Text, TextInput, Title } from '@mantine/core';
 import { usePlatformAccess } from './context';
 import { TenantAdministration } from './TenantAdministration';
+import { addPlanMonths } from '../../shared/plans.mjs';
 
 interface ManagedUser {
   userId: string;
@@ -23,6 +24,7 @@ function UserRow({ user, onSaved }: { user: ManagedUser; onSaved: () => Promise<
   const [status, setStatus] = useState(user.status);
   const [planName, setPlanName] = useState(user.planName);
   const [expiry, setExpiry] = useState(localDate(user.expiresAt));
+  const [duration, setDuration] = useState(user.expiresAt ? 'custom' : 'none');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const expired = user.expiresAt && new Date(user.expiresAt).getTime() <= Date.now();
@@ -31,7 +33,10 @@ function UserRow({ user, onSaved }: { user: ManagedUser; onSaved: () => Promise<
     try {
       await request(`/platform/users/${encodeURIComponent(user.userId)}`, {
         method: 'PATCH', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status, planName, expiresAt: expiry ? new Date(expiry).toISOString() : null }),
+        body: JSON.stringify({ status, planName,
+          expiresAt: duration === 'custom' && expiry ? new Date(expiry).toISOString() : null,
+          ...(['1', '2'].includes(duration) ? { durationMonths: Number(duration) } : {}),
+        }),
       });
       await onSaved();
     } catch (e) { setError(e instanceof Error ? e.message : 'Unable to update access.'); }
@@ -43,7 +48,10 @@ function UserRow({ user, onSaved }: { user: ManagedUser; onSaved: () => Promise<
       {!user.isSuperadmin && <Select aria-label={`Access status for ${user.email}`} value={status} data={[{ value: 'pending', label: 'Pending approval' }, { value: 'approved', label: 'Approved' }, { value: 'suspended', label: 'Paused' }]} onChange={(value) => setStatus(value as ManagedUser['status'])} disabled={busy} allowDeselect={false} />}
     </Table.Td>
     <Table.Td miw={140}><TextInput aria-label={`Plan for ${user.email}`} value={planName} onChange={(e) => setPlanName(e.currentTarget.value)} maxLength={60} disabled={busy || user.isSuperadmin} /></Table.Td>
-    <Table.Td miw={220}><TextInput aria-label={`Plan expiry for ${user.email}`} type="datetime-local" value={expiry} onChange={(e) => setExpiry(e.currentTarget.value)} disabled={busy || user.isSuperadmin} /><Text size="xs" c="dimmed">Local time · empty means no expiry</Text></Table.Td>
+    <Table.Td miw={250}><Stack gap="xs"><Select aria-label={`Plan duration for ${user.email}`} value={duration} onChange={(value) => setDuration(value || 'custom')} allowDeselect={false} disabled={busy || user.isSuperadmin} data={[{ value: '1', label: '1 month from now' }, { value: '2', label: '2 months from now' }, { value: 'custom', label: 'Custom expiry' }, { value: 'none', label: 'No expiry' }]} />
+      {duration === 'custom' && <TextInput aria-label={`Plan expiry for ${user.email}`} type="datetime-local" value={expiry} onChange={(e) => setExpiry(e.currentTarget.value)} disabled={busy || user.isSuperadmin} />}
+      <Text size="xs" c="dimmed">{['1', '2'].includes(duration) ? `Ends around ${addPlanMonths(new Date(), Number(duration)).toLocaleString()}. Starts when you save.` : duration === 'custom' ? 'Local time · empty means no expiry' : 'Access continues until paused or changed.'}</Text>
+    </Stack></Table.Td>
     <Table.Td><Button size="xs" loading={busy} disabled={user.isSuperadmin || !planName.trim()} onClick={() => void save()}>Save access</Button></Table.Td>
   </Table.Tr>;
 }
