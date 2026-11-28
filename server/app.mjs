@@ -1,7 +1,8 @@
 import express from 'express';
 import { clerkMiddleware, getAuth } from '@clerk/express';
 import { neon } from '@neondatabase/serverless';
-import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { createObjectStorage, LOGO_BUCKET } from './storage.mjs';
 import { randomUUID } from 'node:crypto';
 import { brandingSchema, tenantIdentity, imageType } from './security.mjs';
 
@@ -24,14 +25,8 @@ export function createApp({ authMiddleware = clerkMiddleware(), readAuth = getAu
     if (!process.env.DATABASE_URL) throw new Error('Database is not configured.');
     return neon(process.env.DATABASE_URL);
   };
-  const storage = () => {
-    if (objectClient) return objectClient;
-    for (const key of ['R2_ACCOUNT_ID', 'R2_ACCESS_KEY_ID', 'R2_SECRET_ACCESS_KEY', 'R2_BUCKET_NAME']) {
-      if (!process.env[key]) throw new Error('Logo storage is not configured.');
-    }
-    return new S3Client({ region: 'auto', endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-      credentials: { accessKeyId: process.env.R2_ACCESS_KEY_ID, secretAccessKey: process.env.R2_SECRET_ACCESS_KEY } });
-  };
+  let storageClient = objectClient;
+  const storage = () => storageClient ||= createObjectStorage();
   const profile = (row) => row ? {
     name: row.name, addressLine1: row.address_line1, addressLine2: row.address_line2,
     phone: row.phone, additionalPhone: row.additional_phone, email: row.email,
@@ -59,7 +54,7 @@ export function createApp({ authMiddleware = clerkMiddleware(), readAuth = getAu
   app.get('/api/tenant/logo', async (_req, res) => {
     const rows = await database()`SELECT logo_key FROM tenant_branding WHERE clerk_org_id = ${res.locals.tenant.orgId}`;
     if (!rows[0]?.logo_key) return res.status(404).json({ error: 'No logo uploaded.' });
-    const object = await storage().send(new GetObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: rows[0].logo_key }));
+    const object = await storage().send(new GetObjectCommand({ Bucket: LOGO_BUCKET, Key: rows[0].logo_key }));
     res.set('Content-Type', object.ContentType || 'application/octet-stream');
     res.set('X-Content-Type-Options', 'nosniff');
     res.send(Buffer.from(await object.Body.transformToByteArray()));
@@ -71,21 +66,21 @@ export function createApp({ authMiddleware = clerkMiddleware(), readAuth = getAu
     if (!rows[0]) return res.status(409).json({ error: 'Save your business details before uploading a logo.' });
     const client = storage();
     const key = `tenants/${res.locals.tenant.orgId}/logos/${randomUUID()}`;
-    await client.send(new PutObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: key, Body: req.body, ContentType: imageType(req.body) }));
+    await client.send(new PutObjectCommand({ Bucket: LOGO_BUCKET, Key: key, Body: req.body, ContentType: imageType(req.body) }));
     try {
       await sql`UPDATE tenant_branding SET logo_key = ${key}, updated_at = now() WHERE clerk_org_id = ${res.locals.tenant.orgId}`;
     } catch (error) {
-      await client.send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: key })).catch(() => {});
+      await client.send(new DeleteObjectCommand({ Bucket: LOGO_BUCKET, Key: key })).catch(() => {});
       throw error;
     }
-    if (rows[0].logo_key) await client.send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: rows[0].logo_key })).catch(() => {});
+    if (rows[0].logo_key) await client.send(new DeleteObjectCommand({ Bucket: LOGO_BUCKET, Key: rows[0].logo_key })).catch(() => {});
     res.json({ ok: true });
   });
   app.delete('/api/tenant/logo', admin, async (_req, res) => {
     const sql = database();
     const rows = await sql`SELECT logo_key FROM tenant_branding WHERE clerk_org_id = ${res.locals.tenant.orgId}`;
     await sql`UPDATE tenant_branding SET logo_key = NULL, updated_at = now() WHERE clerk_org_id = ${res.locals.tenant.orgId}`;
-    if (rows[0]?.logo_key) await storage().send(new DeleteObjectCommand({ Bucket: process.env.R2_BUCKET_NAME, Key: rows[0].logo_key })).catch(() => {});
+    if (rows[0]?.logo_key) await storage().send(new DeleteObjectCommand({ Bucket: LOGO_BUCKET, Key: rows[0].logo_key })).catch(() => {});
     res.json({ ok: true });
   });
   app.use('/api', (_req, res) => res.status(404).json({ error: 'API route not found.' }));

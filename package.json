@@ -11,7 +11,8 @@
     "dev:api": "node --watch server/index.mjs",
     "start": "node server/index.mjs",
     "db:migrate": "node server/migrate.mjs",
-    "test": "node --test server/*.test.mjs"
+    "test": "node --test server/*.test.mjs",
+    "verify:neon": "node server/verify-neon.mjs"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.15.32",
@@ -19,6 +20,8 @@
     "@clerk/express": "^2.1.99",
     "@clerk/react": "^6.19.7",
     "@mantine/core": "^8.2.4",
+    "@neon/config": "^1.14.8",
+    "@neon/env": "^2.1.11",
     "@neondatabase/serverless": "^1.2.2",
     "@tabler/icons-react": "^3.40.0",
     "dotenv": "^18.0.10",

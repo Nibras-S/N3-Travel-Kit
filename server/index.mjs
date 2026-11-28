@@ -8,4 +8,8 @@ if (process.env.NODE_ENV === 'production') {
   app.use(express.static(resolve('dist')));
   app.get('/{*path}', (_req, res) => res.sendFile(resolve('dist/index.html')));
 }
-app.listen(Number(process.env.PORT || 3001), '0.0.0.0', () => console.log('N3 Travel Kit API is ready.'));
+const server = app.listen(Number(process.env.PORT || 3001), '0.0.0.0', () => {
+  const port = server.address().port;
+  console.log(`N3 Travel Kit is ready at http://localhost:${port}`);
+  process.send?.({ type: 'ready', port });
+});
