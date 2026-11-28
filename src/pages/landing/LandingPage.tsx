@@ -1,4 +1,5 @@
 import { WorkspaceControls } from "../../tenant/WorkspaceControls";
+import { usePlatformAccess } from '../../access/context';
 import { useTenant } from "../../tenant/context";
 import {
   Box,
@@ -6,6 +7,8 @@ import {
   Text,
   SimpleGrid,
   Container,
+  Badge,
+  Stack,
 } from "@mantine/core";
 import { routes, type RouteConfig } from "../../routes";
 import { useNavigation } from "../../NavigationContext";
@@ -314,6 +317,7 @@ const CardPreview = ({ route }: { route: RouteConfig }) => {
 const LandingPage = () => {
   const { branding } = useTenant();
   const { navigate } = useNavigation();
+  const { access } = usePlatformAccess();
 
   return (
     <Box
@@ -330,6 +334,7 @@ const LandingPage = () => {
     >
       <Box mb="xl"><WorkspaceControls /></Box>
       <Text fw={600} mb="md">{branding.name}</Text>
+      <Badge color={access.planName === 'Pro' ? 'violet' : 'blue'} mb="md">{access.planName} plan</Badge>
       {/* Centered Logo */}
       <Box mb={44} style={{ display: "flex", justifyContent: "center" }}>
         <Image
@@ -348,9 +353,12 @@ const LandingPage = () => {
         >
           {routes.map((route) => (
             <Box
+              component="button"
+              type="button"
               key={route.path}
               className="canva-card"
               onClick={() => navigate(route.path)}
+              aria-label={`${route.label}${access.allowedTools?.includes(route.id) ? '' : ' — Locked, upgrade to Pro'}`}
               style={{
                 height: 84,
                 borderRadius: 20,
@@ -367,18 +375,18 @@ const LandingPage = () => {
               }}
             >
               {/* Left Side: Bold Title */}
-              <Text
+              <Stack gap={4} style={{ maxWidth: '60%', textAlign: 'left' }}><Text
                 fw={700}
                 style={{
                   fontSize: 15,
                   color: "#1e2124",
                   lineHeight: 1.25,
                   letterSpacing: -0.2,
-                  maxWidth: "58%",
                 }}
               >
                 {route.label}
               </Text>
+              {!access.allowedTools?.includes(route.id) && <Badge color="gray" variant="light" size="xs">🔒 Pro · Locked</Badge>}</Stack>
 
               {/* Right Side: Micro Tilted Graphic */}
               <CardPreview route={route} />

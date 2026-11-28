@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { addPlanMonths } from '../shared/plans.mjs';
+import { addPlanMonths, allowedTools, normalizePlan } from '../shared/plans.mjs';
 
 export function superadminIds(env = process.env) {
   return new Set((env.SUPERADMIN_USER_IDS || '').split(',').map((id) => id.trim()).filter(Boolean));
@@ -21,7 +21,7 @@ const messages = {
 
 export const accessUpdateSchema = z.object({
   status: z.enum(['pending', 'approved', 'suspended']),
-  planName: z.string().trim().min(1).max(60),
+  planName: z.enum(['Plus', 'Pro']),
   expiresAt: z.union([z.iso.datetime({ offset: true }), z.null()]),
   durationMonths: z.union([z.literal(1), z.literal(2)]).optional(),
 }).strict();
@@ -29,7 +29,7 @@ export const accessUpdateSchema = z.object({
 function publicUser(row, admins) {
   return {
     userId: row.clerk_user_id, email: row.email, name: row.display_name,
-    status: row.status, planName: row.plan_name, expiresAt: row.expires_at,
+    status: row.status, planName: admins.has(row.clerk_user_id) ? 'Pro' : normalizePlan(row.plan_name), expiresAt: row.expires_at,
     isSuperadmin: admins.has(row.clerk_user_id), createdAt: row.created_at,
   };
 }
@@ -46,8 +46,8 @@ export function mountAccessRoutes(app, { database, loadUser, loadTenantIdentity,
       const primary = user.emailAddresses.find((email) => email.id === user.primaryEmailAddressId);
       const email = primary?.emailAddress || '';
       const name = [user.firstName, user.lastName].filter(Boolean).join(' ') || user.username || '';
-      rows = await sql`INSERT INTO platform_users (clerk_user_id, email, display_name)
-        VALUES (${userId}, ${email}, ${name}) ON CONFLICT (clerk_user_id) DO UPDATE
+      rows = await sql`INSERT INTO platform_users (clerk_user_id, email, display_name, plan_name)
+        VALUES (${userId}, ${email}, ${name}, 'Plus') ON CONFLICT (clerk_user_id) DO UPDATE
         SET email = EXCLUDED.email, display_name = EXCLUDED.display_name RETURNING *`;
     }
     const row = rows[0];
@@ -59,7 +59,9 @@ export function mountAccessRoutes(app, { database, loadUser, loadTenantIdentity,
         ON CONFLICT (clerk_org_id) DO UPDATE SET clerk_org_id = EXCLUDED.clerk_org_id RETURNING status`;
       if (!isSuperadmin && tenants[0].status === 'paused') decision = { allowed: false, status: 'tenant_paused' };
     }
-    res.json({ userId, email: row.email, isSuperadmin, ...decision, planName: row.plan_name, expiresAt: row.expires_at });
+    const planName = isSuperadmin ? 'Pro' : normalizePlan(row.plan_name);
+    res.json({ userId, email: row.email, isSuperadmin, ...decision, planName, expiresAt: row.expires_at,
+      allowedTools: decision.allowed ? allowedTools(planName, isSuperadmin) : [] });
   });
 
   app.use('/api/platform', (_req, res, next) => {

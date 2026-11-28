@@ -7,6 +7,7 @@ export interface PlatformAccess {
   allowed: boolean;
   status: 'pending' | 'approved' | 'suspended' | 'expired' | 'superadmin' | 'tenant_paused';
   planName: string;
+  allowedTools: string[];
   expiresAt: string | null;
 }
 export interface PlatformAccessValue {

@@ -8,3 +8,14 @@ export function addPlanMonths(value, months) {
   date.setUTCDate(Math.min(day, lastDay));
   return date;
 }
+
+export const PLUS_TOOLS = Object.freeze(['invoice', 'brochure']);
+export const ALL_TOOLS = Object.freeze(['invoice', 'flight', 'brochure', 'bahrain', 'qatar', 'uae', 'oman', 'saudi']);
+
+export function normalizePlan(plan) {
+  return typeof plan === 'string' && plan.trim().toLowerCase() === 'pro' ? 'Pro' : 'Plus';
+}
+
+export function allowedTools(plan, isSuperadmin = false) {
+  return [...(isSuperadmin || normalizePlan(plan) === 'Pro' ? ALL_TOOLS : PLUS_TOOLS)];
+}
