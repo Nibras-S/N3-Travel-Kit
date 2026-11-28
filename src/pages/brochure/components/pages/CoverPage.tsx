@@ -1,3 +1,4 @@
+import { useTenant } from "../../../../tenant/context";
 import type { BrochureData, BrochureImages } from "../../types";
 import {
   BrochureBrand,
@@ -21,12 +22,14 @@ export const CoverPage = ({
   onImageUpload,
   onImageRemove,
   totalPages,
-}: CoverPageProps) => (
+}: CoverPageProps) => {
+  const { branding } = useTenant();
+  return (
   <BrochurePage className="sb-page--cover">
     <div className="sb-cover-copy">
       <header className="sb-running-header">
         <BrochureBrand />
-        <span className="sb-eyebrow">The N3 TravelKit collection</span>
+        <span className="sb-eyebrow">The {branding.name} collection</span>
       </header>
 
       <FitContent className="sb-cover-story">
@@ -98,3 +101,4 @@ export const CoverPage = ({
     </div>
   </BrochurePage>
 );
+};

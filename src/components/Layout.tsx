@@ -7,6 +7,7 @@ import {
   Box,
 } from "@mantine/core";
 import {  ChevronLeft } from "lucide-react";
+import { WorkspaceControls } from "../tenant/WorkspaceControls";
 import { useNavigation } from "../NavigationContext";
 
 interface LayoutProps {
@@ -73,6 +74,7 @@ const Layout = ({
 
           <Group gap="sm">
             {actions}
+            <WorkspaceControls />
           </Group>
         </Group>
       </Paper>

@@ -1,3 +1,4 @@
+import { useTenant } from "../../tenant/context";
 import { useRef, useState } from "react";
 import {
   Button,
@@ -18,8 +19,8 @@ import {
   Accordion,
   ThemeIcon,
   ScrollArea,
-  Select,
   Switch,
+  Select,
 } from "@mantine/core";
 import { Plus, Trash2, Download } from "lucide-react";
 import { useReactToPrint } from "react-to-print";
@@ -31,16 +32,16 @@ const generateRandomInvoiceNumber = () =>
   String(Math.floor(1000000000 + Math.random() * 9000000000));
 
 const InvoiceGenerator = () => {
+  const { branding } = useTenant();
   const contentRef = useRef<HTMLDivElement>(null);
   const reactToPrintFn = useReactToPrint({ contentRef });
   const [currency, setCurrency] = useState("₹");
-  const [selectedLogo, setSelectedLogo] = useState("n3travelkit");
 
   const [invoiceData, setInvoiceData] = useState({
-    addressLine1: "Ground Floor, Royal Oak Mall,",
-    addressLine2: "Thana, Kannur",
-    email: "n3globaltech@gmail.com",
-    phone: "860 655 0235 | 871 420 0235",
+    addressLine1: branding.addressLine1,
+    addressLine2: branding.addressLine2,
+    email: branding.email,
+    phone: [branding.phone, branding.additionalPhone].filter(Boolean).join(" | "),
     invoiceTo: "",
     invoiceDate: new Date().toISOString().split("T")[0],
     invoiceNumber: generateRandomInvoiceNumber(),
@@ -69,7 +70,7 @@ Wishing you safe travels and unforgettable experiences!
     }));
   };
 
-  const removeItem = (id: any) => {
+  const removeItem = (id: number) => {
     if (invoiceData.items.length > 1) {
       setInvoiceData((prev) => ({
         ...prev,
@@ -78,7 +79,7 @@ Wishing you safe travels and unforgettable experiences!
     }
   };
 
-  const updateItem = (id: any, field: any, value: any) => {
+  const updateItem = (id: number, field: "description" | "qty" | "rate", value: string | number) => {
     setInvoiceData((prev) => ({
       ...prev,
       items: prev.items.map((item) =>
@@ -88,8 +89,8 @@ Wishing you safe travels and unforgettable experiences!
   };
 
   const handleItemNumberChange = (
-    id: any,
-    field: any,
+    id: number,
+    field: "qty" | "rate",
     value: string | number
   ) => {
     // Handle empty string or null/undefined values
@@ -107,7 +108,7 @@ Wishing you safe travels and unforgettable experiences!
     }
   };
 
-  const updateField = (field: any, value: any) => {
+  const updateField = <K extends keyof typeof invoiceData>(field: K, value: (typeof invoiceData)[K]) => {
     setInvoiceData((prev) => ({ ...prev, [field]: value }));
   };
 
@@ -292,15 +293,6 @@ Wishing you safe travels and unforgettable experiences!
                   spacing={{ base: 10, sm: "md" }}
                   verticalSpacing={{ base: "md", sm: "md" }}
                 >
-                  <Select
-                    label="Logo Selection"
-                    value={selectedLogo}
-                    data={[
-                      { value: "n3travelkit", label: "N3 TravelKit" },
-                      { value: "ahma", label: "Ahma" },
-                    ]}
-                    onChange={(value) => setSelectedLogo(value || "n3travelkit")}
-                  />
                   <TextInput
                     label="Address Line 1"
                     value={invoiceData.addressLine1}
@@ -429,7 +421,7 @@ Wishing you safe travels and unforgettable experiences!
                     label={"Choose Currency"}
                     value={currency}
                     data={["₹", "AED", "QAR", "$"]}
-                    onChange={(d: any) => setCurrency(d)}
+                    onChange={(value) => setCurrency(value || "₹")}
                   />
 
                   <NumberInput
@@ -566,7 +558,7 @@ Wishing you safe travels and unforgettable experiences!
               {/* Header */}
               <Group justify="space-between" mb="xl">
                 <Group gap="md">
-                  <Image src={`/${selectedLogo === "n3travelkit" ? "N3TravelKit.png" : "ahma.svg"}`} alt="Logo" w={200} />
+                  <Stack gap={4}>{branding.logoUrl ? <Image src={branding.logoUrl} alt={branding.name} w={200} h={80} fit="contain" /> : <Title order={2}>{branding.name}</Title>}<Text size="xs" c="dimmed">Powered by N3 Travel Kit</Text></Stack>
                 </Group>
                 <Box>
                   <Title order={2} c="gray.9">

@@ -25,6 +25,8 @@
   display: block;
   width: 100%;
   height: auto;
+  max-height: 7cqw;
+  object-fit: contain;
 }
 
 .divider {
@@ -81,11 +83,11 @@
 }
 
 .address {
-  flex: 0 0 auto;
+  flex: 0 1 30%;
 }
 
 .addressCopy {
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .addressHeading {

@@ -2,9 +2,12 @@ import { useState, useEffect, Suspense } from "react";
 import { LoadingOverlay } from "@mantine/core";
 import LandingPage from "./pages/landing/LandingPage";
 import { NavigationContext } from "./NavigationContext";
+import TenantSettings from "./tenant/TenantSettings";
+import { useTenant } from "./tenant/context";
 import { routes } from "./routes";
 
 const App = () => {
+  const { tenantId, revision } = useTenant();
   const [currentPath, setCurrentPath] = useState(() => {
     const hash = window.location.hash.replace("#/", "");
     return hash || "";
@@ -33,7 +36,7 @@ const App = () => {
 
   // Redirect invalid routes to home
   useEffect(() => {
-    if (currentPath && !matchedRoute) {
+    if (currentPath && currentPath !== "settings" && !matchedRoute) {
       navigateHome();
     }
   }, [currentPath, matchedRoute]);
@@ -43,10 +46,10 @@ const App = () => {
   return (
     <NavigationContext.Provider value={{ navigateHome, navigate }}>
       <Suspense fallback={<LoadingOverlay visible />}>
-        {currentPath === "" || currentPath === "/" ? (
+        {currentPath === "settings" ? <TenantSettings /> : currentPath === "" || currentPath === "/" ? (
           <LandingPage />
         ) : PageComponent ? (
-          <PageComponent key={matchedRoute.path} />
+          <PageComponent key={`${tenantId}:${matchedRoute.path}:${revision}`} />
         ) : null}
       </Suspense>
     </NavigationContext.Provider>

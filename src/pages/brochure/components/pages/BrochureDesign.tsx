@@ -1,3 +1,4 @@
+import { useTenant } from "../../../../tenant/context";
 import { useLayoutEffect, useRef } from "react";
 import type { CSSProperties, ReactNode } from "react";
 import { PAGE_HEIGHT, PAGE_WIDTH } from "../../types";
@@ -28,13 +29,16 @@ export const BrochureBrand = ({
 }: {
   inverse?: boolean;
   compact?: boolean;
-}) => (
+}) => {
+  const { branding } = useTenant();
+  return (
   <div
     className={`sb-brand${inverse ? " sb-brand--inverse" : ""}${compact ? " sb-brand--compact" : ""}`}
   >
-    <img src="/N3TravelKit.png" alt="N3 TravelKit" />
+    {branding.logoUrl ? <img src={branding.logoUrl} alt={branding.name} /> : <strong>{branding.name}</strong>}
   </div>
 );
+};
 
 export const BrochureFooter = ({
   label,
@@ -48,7 +52,7 @@ export const BrochureFooter = ({
   inverse?: boolean;
 }) => (
   <footer className={`sb-footer${inverse ? " sb-footer--inverse" : ""}`}>
-    <span className="sb-footer-label">{label}</span>
+    <span className="sb-footer-label">{label} · Powered by N3 Travel Kit</span>
     <span className="sb-footer-pagination">
       <strong>{String(pageNumber).padStart(2, "0")}</strong>
       <span className="sb-footer-divider" />

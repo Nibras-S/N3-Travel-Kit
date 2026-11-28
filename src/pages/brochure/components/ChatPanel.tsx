@@ -1,3 +1,4 @@
+import { useTenant } from "../../../tenant/context";
 import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Box,
@@ -274,10 +275,14 @@ export const ChatPanel = ({
   currentBrochureData,
   onBrochureGenerated,
 }: ChatPanelProps) => {
+  const { tenantId, userId, branding } = useTenant();
+  const apiKeyStorageKey = `n3travelkit:${tenantId}:${userId}:gemini_api_key`;
+  const modelStorageKey = `n3travelkit:${tenantId}:${userId}:gemini_model`;
+
   // Saved API key from localStorage
   const [apiKey, setApiKey] = useState<string>(() => {
     try {
-      return localStorage.getItem("gemini_api_key") || "";
+      return localStorage.getItem(apiKeyStorageKey) || "";
     } catch {
       return "";
     }
@@ -290,7 +295,7 @@ export const ChatPanel = ({
   // Selected model (persisted in localStorage, defaults to Gemini Flash-Lite Latest)
   const [selectedModel, setSelectedModel] = useState<string>(() => {
     try {
-      const saved = localStorage.getItem("gemini_model");
+      const saved = localStorage.getItem(modelStorageKey);
       if (saved && CURATED_MODELS.some((m) => m.name === saved)) {
         return saved;
       }
@@ -328,7 +333,7 @@ export const ChatPanel = ({
       setModels(fetched);
 
       if (fetched.length > 0) {
-        const saved = localStorage.getItem("gemini_model") || "";
+        const saved = localStorage.getItem(modelStorageKey) || "";
         const exists = fetched.some((m) => m.name === saved);
         // Default to Flash-Lite if no valid prior model saved
         const fallback =
@@ -337,8 +342,8 @@ export const ChatPanel = ({
         const modelToSet = exists ? saved : fallback;
         setSelectedModel(modelToSet);
         try {
-          localStorage.setItem("gemini_model", modelToSet);
-        } catch { }
+          localStorage.setItem(modelStorageKey, modelToSet);
+        } catch { /* Continue without saving browser preferences. */ }
       }
     } catch (err) {
       console.warn("Failed to load Gemini models:", err);
@@ -372,8 +377,8 @@ export const ChatPanel = ({
         const defaultModel = res.models[0].name;
         setSelectedModel(defaultModel);
         try {
-          localStorage.setItem("gemini_model", defaultModel);
-        } catch { }
+          localStorage.setItem(modelStorageKey, defaultModel);
+        } catch { /* Continue without saving browser preferences. */ }
       }
     } catch (err) {
       setTestResult({
@@ -391,10 +396,10 @@ export const ChatPanel = ({
     setApiKey(trimmedKey);
     try {
       if (trimmedKey) {
-        localStorage.setItem("gemini_api_key", trimmedKey);
+        localStorage.setItem(apiKeyStorageKey, trimmedKey);
         handleLoadModels(trimmedKey);
       } else {
-        localStorage.removeItem("gemini_api_key");
+        localStorage.removeItem(apiKeyStorageKey);
         setModels([]);
         setSelectedModel("");
       }
@@ -411,8 +416,8 @@ export const ChatPanel = ({
     setSelectedModel("");
     setTestResult({ status: "idle" });
     try {
-      localStorage.removeItem("gemini_api_key");
-      localStorage.removeItem("gemini_model");
+      localStorage.removeItem(apiKeyStorageKey);
+      localStorage.removeItem(modelStorageKey);
     } catch (e) {
       console.warn("localStorage remove error:", e);
     }
@@ -477,7 +482,8 @@ export const ChatPanel = ({
             selectedModelRef.current,
             formattedMessages,
             controller.signal,
-            currentBrochureDataRef.current
+            currentBrochureDataRef.current,
+            branding
           );
 
           if (controller.signal.aborted || abortSignal?.aborted) return;
@@ -533,7 +539,7 @@ export const ChatPanel = ({
         }
       },
     }),
-    [onBrochureGenerated]
+    [onBrochureGenerated, branding]
   );
 
   const runtime = useLocalRuntime(chatModel);
@@ -916,8 +922,8 @@ export const ChatPanel = ({
                             onClick={() => {
                               setSelectedModel(cleanName);
                               try {
-                                localStorage.setItem("gemini_model", cleanName);
-                              } catch { }
+                                localStorage.setItem(modelStorageKey, cleanName);
+                              } catch { /* Continue without saving browser preferences. */ }
                             }}
                             rightSection={
                               isSelected ? (

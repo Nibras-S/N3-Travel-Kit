@@ -1,3 +1,4 @@
+import type { TenantBranding } from "../../tenant/types";
 import type { BrochureData } from "./types";
 
 const API_BASE = "https://generativelanguage.googleapis.com/v1beta";
@@ -50,7 +51,7 @@ export async function fetchModels(apiKey: string): Promise<GeminiModel[]> {
 
     // If verified found, return them; otherwise return curated models as reliable defaults
     return verified.length > 0 ? verified : CURATED_MODELS;
-  } catch (e) {
+  } catch {
     // If fetching fails but key was provided, still return curated list so user isn't blocked
     return CURATED_MODELS;
   }
@@ -64,7 +65,7 @@ export async function testConnection(apiKey: string): Promise<{ success: boolean
   return { success: true, models };
 }
 
-const SYSTEM_PROMPT = `You are a professional travel brochure content writer for N3 TravelKit (powered by N3 Global Tech).
+const SYSTEM_PROMPT = `You are a professional travel brochure content writer for the active travel business (powered by N3 Travel Kit).
 Your job is to generate beautifully written, structured content for an 8-10 page tour package brochure.
 
 When the user provides tour package details, you MUST respond with a valid JSON object matching this schema:
@@ -76,7 +77,7 @@ When the user provides tour package details, you MUST respond with a valid JSON 
   "tags": ["NORTH INDIA", "RAIL", "CITIES", "MOUNTAINS"],
   "tagline": {
     "title": "Heritage meets the highlands",
-    "subtitle": "Presented by N3 TravelKit"
+    "subtitle": "Your travel partner"
   },
   "days": [
     {
@@ -132,8 +133,8 @@ When the user provides tour package details, you MUST respond with a valid JSON 
     "subtitle": "Until we meet again,",
     "body": "let the memories stay with you forever.\\nthe landmarks awaits your returns!"
   },
-  "contactPhone": "703 448 8235, 963 382 6452",
-  "contactAddress": "Royal Oak Mall,\\nThana, Kannur"
+  "contactPhone": "",
+  "contactAddress": ""
 }
 
 Design Rules:
@@ -146,7 +147,7 @@ Design Rules:
 - Keep texts concise, evocative, and inspiring.
 - Inclusions should have 5-7 items. Exclusions should have 4-6 items.
 - Booking terms should have exactly 3 concise terms.
-- Contact info should feature N3 TravelKit's phone and address.
+- Use only the active business contact details provided in context. Leave missing details empty.
 
 Respond with the JSON object in markdown code block \`\`\`json ... \`\`\`.`;
 
@@ -155,7 +156,8 @@ export async function generateContent(
   model: string,
   messages: { role: string; content: string }[],
   signal?: AbortSignal,
-  currentBrochureData?: BrochureData | null
+  currentBrochureData?: BrochureData | null,
+  branding?: TenantBranding
 ): Promise<{ text: string; brochureData?: BrochureData; isEdit?: boolean }> {
   if (signal?.aborted) {
     const abortErr = new Error("Generation was cancelled");
@@ -173,6 +175,9 @@ export async function generateContent(
   }));
 
   let systemPromptWithContext = SYSTEM_PROMPT;
+  if (branding) {
+    systemPromptWithContext += `\nActive business details (use these for branding and contact fields): ${JSON.stringify({ name: branding.name, phone: [branding.phone, branding.additionalPhone].filter(Boolean).join(", "), address: [branding.addressLine1, branding.addressLine2].filter(Boolean).join(", "), email: branding.email })}`;
+  }
   const isEdit = Boolean(currentBrochureData);
 
   if (currentBrochureData) {

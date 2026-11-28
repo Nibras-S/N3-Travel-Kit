@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTenant } from "../tenant/context";
 
 export interface PosterContact {
   phone: string;
@@ -6,40 +7,23 @@ export interface PosterContact {
   staffName: string;
 }
 
-export const DEFAULT_POSTER_CONTACT: PosterContact = {
-  phone: "860 655 0235",
-  additionalPhone: "871 420 0235",
-  staffName: "",
-};
-
-const STORAGE_KEY = "n3travelkit_poster_contact";
-
-function loadContact(): PosterContact {
-  try {
-    const saved: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) || "null");
-    if (!saved || typeof saved !== "object") return { ...DEFAULT_POSTER_CONTACT };
-    const data = saved as Record<string, unknown>;
-    return {
-      phone: typeof data.phone === "string" ? data.phone : DEFAULT_POSTER_CONTACT.phone,
-      additionalPhone: typeof data.additionalPhone === "string" ? data.additionalPhone : DEFAULT_POSTER_CONTACT.additionalPhone,
-      staffName: typeof data.staffName === "string" ? data.staffName : "",
-    };
-  } catch {
-    return { ...DEFAULT_POSTER_CONTACT };
-  }
-}
-
-/** Remember the employee's contact details when moving between poster tools. */
+/** Personal poster overrides are isolated by organization and signed-in user. */
 export function usePosterContact() {
-  const [contact, setContact] = useState<PosterContact>(loadContact);
-
-  useEffect(() => {
+  const { tenantId, userId, branding } = useTenant();
+  const key = `n3travelkit:${tenantId}:${userId}:poster-contact:${branding.phone}:${branding.additionalPhone}`;
+  const [contact, setContact] = useState<PosterContact>(() => {
+    const defaults = { phone: branding.phone, additionalPhone: branding.additionalPhone, staffName: "" };
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(contact));
-    } catch {
-      // The current poster can still be edited when browser storage is unavailable.
-    }
-  }, [contact]);
-
+      const saved = JSON.parse(localStorage.getItem(key) || "null") as Partial<PosterContact> | null;
+      return {
+        phone: typeof saved?.phone === "string" ? saved.phone : defaults.phone,
+        additionalPhone: typeof saved?.additionalPhone === "string" ? saved.additionalPhone : defaults.additionalPhone,
+        staffName: typeof saved?.staffName === "string" ? saved.staffName : "",
+      };
+    } catch { return defaults; }
+  });
+  useEffect(() => {
+    try { localStorage.setItem(key, JSON.stringify(contact)); } catch { /* Editing still works without browser storage. */ }
+  }, [key, contact]);
   return [contact, setContact] as const;
 }

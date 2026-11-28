@@ -1,3 +1,5 @@
+import { WorkspaceControls } from "../../tenant/WorkspaceControls";
+import { useTenant } from "../../tenant/context";
 import {
   Box,
   Image,
@@ -310,6 +312,7 @@ const CardPreview = ({ route }: { route: RouteConfig }) => {
 };
 
 const LandingPage = () => {
+  const { branding } = useTenant();
   const { navigate } = useNavigation();
 
   return (
@@ -325,6 +328,8 @@ const LandingPage = () => {
         padding: "48px 24px",
       }}
     >
+      <Box mb="xl"><WorkspaceControls /></Box>
+      <Text fw={600} mb="md">{branding.name}</Text>
       {/* Centered Logo */}
       <Box mb={44} style={{ display: "flex", justifyContent: "center" }}>
         <Image

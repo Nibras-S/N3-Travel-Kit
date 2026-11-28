@@ -7,18 +7,29 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "dev:api": "node --watch server/index.mjs",
+    "start": "node server/index.mjs",
+    "db:migrate": "node server/migrate.mjs",
+    "test": "node --test server/*.test.mjs"
   },
   "dependencies": {
     "@assistant-ui/react": "^0.15.32",
+    "@aws-sdk/client-s3": "^3.1179.0",
+    "@clerk/express": "^2.1.99",
+    "@clerk/react": "^6.19.7",
     "@mantine/core": "^8.2.4",
+    "@neondatabase/serverless": "^1.2.2",
     "@tabler/icons-react": "^3.40.0",
+    "dotenv": "^18.0.10",
+    "express": "^5.3.0",
     "geist": "^1.9.2",
     "html-to-image": "^1.11.13",
     "lucide-react": "^0.539.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
-    "react-to-print": "^3.1.1"
+    "react-to-print": "^3.1.1",
+    "zod": "^4.6.7"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
@@ -35,5 +46,8 @@
     "typescript": "~5.8.3",
     "typescript-eslint": "^8.39.0",
     "vite": "^7.1.0"
+  },
+  "engines": {
+    "node": ">=20.19.0"
   }
 }

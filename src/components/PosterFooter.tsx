@@ -1,3 +1,4 @@
+import { useTenant } from "../tenant/context";
 import { useLayoutEffect, useRef } from "react";
 import { IconBrandWhatsapp, IconMapPin } from "@tabler/icons-react";
 import type { PosterContact } from "./usePosterContact";
@@ -9,6 +10,7 @@ interface PosterFooterProps {
 
 /** Shared flex footer; only the two icons use SVG. */
 export function PosterFooter({ contact }: PosterFooterProps) {
+  const { branding } = useTenant();
   const wrapperRef = useRef<HTMLDivElement>(null);
   const phoneLineRef = useRef<HTMLDivElement>(null);
   const phoneTextRef = useRef<HTMLSpanElement>(null);
@@ -47,9 +49,10 @@ export function PosterFooter({ contact }: PosterFooterProps) {
 
   return (
     <div ref={wrapperRef} className={classes.wrapper}>
-      <footer className={classes.footer} aria-label="N3 TravelKit poster contact details">
+      <footer className={classes.footer} aria-label={`${branding.name} contact details`}>
         <div className={classes.brand}>
-          <img src="/N3TravelKit.png" alt="N3 TravelKit" className={classes.logo} />
+          {branding.logoUrl ? <img src={branding.logoUrl} alt={branding.name} className={classes.logo} /> : <strong>{branding.name}</strong>}
+          <div style={{ fontSize: "1.15cqw", marginTop: "0.6cqw", color: "#64748b" }}>Powered by N3 Travel Kit</div>
         </div>
 
         <div className={classes.divider} aria-hidden="true" />
@@ -71,8 +74,8 @@ export function PosterFooter({ contact }: PosterFooterProps) {
         <div className={classes.address}>
           <IconMapPin className={classes.icon} stroke={2} aria-hidden="true" />
           <div className={classes.addressCopy}>
-            <div className={classes.addressHeading}>Royal Oak Mall,</div>
-            <div className={classes.addressLocation}>Thana, Kannur</div>
+            <div className={classes.addressHeading}>{branding.addressLine1}</div>
+            <div className={classes.addressLocation}>{branding.addressLine2}</div>
           </div>
         </div>
       </footer>

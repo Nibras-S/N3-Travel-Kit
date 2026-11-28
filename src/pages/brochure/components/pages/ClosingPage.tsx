@@ -1,3 +1,4 @@
+import { useTenant } from "../../../../tenant/context";
 import { ArrowUpRight, MapPin, Phone } from "lucide-react";
 import type { BrochureData, BrochureImages } from "../../types";
 import {
@@ -24,7 +25,9 @@ export const ClosingPage = ({
   images,
   onImageUpload,
   onImageRemove,
-}: ClosingPageProps) => (
+}: ClosingPageProps) => {
+  const { branding } = useTenant();
+  return (
   <BrochurePage className="sb-page--closing">
     <div className="sb-closing-visual">
       <EditorialImageSlot
@@ -63,7 +66,7 @@ export const ClosingPage = ({
               <span>Reservations</span>
             </div>
             <p className="sb-contact-phone">
-              {data.contactPhone || "703 448 8235, 963 382 6452"}
+              {data.contactPhone || [branding.phone, branding.additionalPhone].filter(Boolean).join(", ")}
             </p>
           </div>
           <div>
@@ -72,7 +75,7 @@ export const ClosingPage = ({
               <span>Find us</span>
             </div>
             <p className="sb-contact-address">
-              {data.contactAddress || "Royal Oak Mall, Thana, Kannur"}
+              {data.contactAddress || [branding.addressLine1, branding.addressLine2].filter(Boolean).join(", ")}
             </p>
           </div>
         </div>
@@ -86,3 +89,4 @@ export const ClosingPage = ({
     </div>
   </BrochurePage>
 );
+};
