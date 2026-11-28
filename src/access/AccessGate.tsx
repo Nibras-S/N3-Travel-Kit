@@ -1,8 +1,8 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { UserButton } from '@clerk/react';
-import { Alert, Button, Center, Group, Image, Stack, Text, Title } from '@mantine/core';
+import { Alert, Button, Center, Group, Image, Loader, Stack, Text, Title } from '@mantine/core';
 import { usePlatformAccess } from './context';
-import { PlatformAdmin } from './PlatformAdmin';
+const PlatformAdmin = lazy(() => import('./PlatformAdmin').then((module) => ({ default: module.PlatformAdmin })));
 
 export function AccessGate({ children }: { children: ReactNode }) {
   const { access, refreshAccess } = usePlatformAccess();
@@ -14,7 +14,7 @@ export function AccessGate({ children }: { children: ReactNode }) {
     return () => window.removeEventListener('hashchange', changed);
   }, []);
   if (path === '#/admin') {
-    if (access.isSuperadmin) return <PlatformAdmin />;
+    if (access.isSuperadmin) return <Suspense fallback={<Center mih="100vh"><Loader /></Center>}><PlatformAdmin /></Suspense>;
     return <Center mih="100vh"><Stack p="xl"><Alert color="red">Platform superadmin access is required.</Alert><Button onClick={() => { window.location.hash = '#/'; }}>Back to your workspace</Button></Stack></Center>;
   }
   if (access.allowed) return children;

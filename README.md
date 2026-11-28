@@ -43,7 +43,7 @@ Switching organizations/users unmounts tool state. Poster contacts and brochure 
 
 Clerk organization admins manage their own business; platform superadmins manage app access across users. These are separate privileges. Configure trusted platform superadmins by their Clerk **user IDs**, comma-separated, in the server-only `SUPERADMIN_USER_IDS` variable, then restart the API. Never use a frontend variable, a browser-submitted email, organization role, or editable user metadata to grant this privilege. The same email has different user IDs in Clerk development and production; configure the correct IDs for each environment.
 
-After a user's first sign-in, `/api/access` registers their verified Clerk identity with `pending` access. Only a platform superadmin can approve, pause, or set their plan name and expiry at `/#/admin`. A superadmin can open this page without creating a business organization. Approved users still need an organization to use the tools. Approval and plan state apply to a user across all their workspaces.
+After a user's first sign-in, `/api/access` registers their verified Clerk identity with `pending` access. Only a platform superadmin can approve, pause, or set their plan name and expiry at `/#/admin`. Clerk forced organization selection is disabled on the development instance so approval status and platform administration can appear immediately after sign-in. A superadmin can open this page without creating a business organization. Approved users still need an organization to use the tools. Approval and plan state apply to a user across all their workspaces.
 
 - **Pending:** cannot use the tools until approved.
 - **Approved:** allowed while the plan is unexpired. An empty expiry means no automatic expiry.
